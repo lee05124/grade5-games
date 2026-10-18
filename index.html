@@ -1,0 +1,1004 @@
+<!doctype html>
+<html lang="zh-Hant">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>body{margin:0}[hidden]{display:none!important}</style>
+<title>五年級湊湊樂</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&family=Huninn&family=Noto+Sans+TC:wght@500&display=swap">
+<style>
+/* Layout: one centered "練習簿" column on graph paper; subject tabs → mode chips → board (target, blocks, controls) → notes. */
+:root{
+  --paper:#F3F7FC; --grid:#DCE6F2; --surface:#FFFFFF; --line:#CBD8E8;
+  --ink:#1D2942; --muted:#5A6A86;
+  --tile:#FFD45E; --tile-edge:#D9A21E; --tile-ink:#3B2A00;
+  --op:#2E66D1; --op-soft:#E3ECFB;
+  --red:#D23B3B; --red-soft:#FBE4E4; --good:#1F8A55;
+  --f-display:"Huninn","Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
+  --f-num:"Baloo 2","Arial Rounded MT Bold","Helvetica Neue",Arial,sans-serif;
+  --r:14px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#1C2B25; --grid:#263A32; --surface:#22352D; --line:#34493F;
+    --ink:#EEF2E8; --muted:#A8B8AC;
+    --tile:#F3CB52; --tile-edge:#AD8417; --tile-ink:#2A1F00;
+    --op:#8DB6FF; --op-soft:#2A4250;
+    --red:#FF7D7D; --red-soft:#4A2D2D; --good:#6FD6A0;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#1C2B25; --grid:#263A32; --surface:#22352D; --line:#34493F;
+  --ink:#EEF2E8; --muted:#A8B8AC;
+  --tile:#F3CB52; --tile-edge:#AD8417; --tile-ink:#2A1F00;
+  --op:#8DB6FF; --op-soft:#2A4250;
+  --red:#FF7D7D; --red-soft:#4A2D2D; --good:#6FD6A0;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{
+  background-color:var(--paper);
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size:24px 24px;
+  color:var(--ink);
+  font-family:var(--f-display);
+  font-size:16px; line-height:1.6;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));
+  padding-right:max(16px, env(safe-area-inset-right, 0px));
+  padding-block:20px 40px;
+}
+.wrap{max-width:620px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+.game{display:flex;flex-direction:column;gap:18px}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible{outline:3px solid var(--op);outline-offset:3px}
+
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+h1{margin:0;font-size:1.9rem;font-weight:400;letter-spacing:.04em;text-wrap:balance;line-height:1.2}
+h1 small{display:block;font-size:.85rem;color:var(--muted);letter-spacing:.02em}
+.stats{display:flex;gap:8px}
+.stat{background:var(--surface);border:1.5px solid var(--line);border-radius:999px;padding:4px 12px;font-size:.85rem;display:flex;gap:6px;align-items:baseline;white-space:nowrap}
+.stat b{font-family:var(--f-num);font-size:1.15rem;font-variant-numeric:tabular-nums;font-weight:800}
+
+/* 科目分頁：像練習簿的索引標籤 */
+.subjects{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.subjects button{border:2px solid var(--line);background:var(--surface);border-radius:14px 14px 6px 6px;padding:8px 2px 6px;font-size:1rem;line-height:1.2;display:flex;flex-direction:column;align-items:center;gap:2px;min-width:0;text-align:center}
+@media (max-width:420px){.subjects button{font-size:.88rem}}
+.subjects button .glyph{font-family:var(--f-num);font-weight:800;font-size:1.5rem;line-height:1;color:var(--op)}
+.subjects button.zh .glyph{font-family:var(--f-display);font-weight:400}
+.subjects button span:last-child{font-size:.78rem;color:var(--muted)}
+.subjects button[aria-selected="true"]{border-color:var(--red);background:var(--red-soft)}
+.subjects button[aria-selected="true"] .glyph{color:var(--red)}
+
+.modes{display:grid;grid-template-columns:repeat(var(--m,3),1fr);gap:6px;background:var(--surface);border:1.5px solid var(--line);border-radius:var(--r);padding:5px}
+.modes button{border:0;background:transparent;border-radius:10px;padding:8px 4px;line-height:1.25;font-size:.98rem}
+.modes button span{display:block;font-size:.75rem;color:var(--muted)}
+.modes button[aria-pressed="true"]{background:var(--op);color:var(--surface)}
+.modes button[aria-pressed="true"] span{color:inherit;opacity:.85}
+
+.board{background:var(--surface);border:1.5px solid var(--line);border-radius:20px;padding:20px 18px 18px;display:flex;flex-direction:column;gap:18px;position:relative}
+.target{display:flex;align-items:center;justify-content:center;gap:14px}
+.target .lbl{font-size:1rem;color:var(--muted)}
+.target .num{font-family:var(--f-num);font-weight:800;font-size:3.6rem;line-height:1;color:var(--red);border:3px solid var(--red);border-radius:50%;width:5.4rem;height:5.4rem;display:grid;place-items:center;transform:rotate(-6deg);padding-top:.35rem}
+.qno{font-size:.85rem;color:var(--muted)}
+
+.tiles{display:grid;grid-template-columns:repeat(var(--n,4),1fr);gap:10px;min-height:7.2rem}
+.tile{
+  aspect-ratio:3/4;max-width:100%;border:0;border-radius:12px;
+  background:var(--tile);color:var(--tile-ink);
+  box-shadow:0 5px 0 var(--tile-edge);
+  display:grid;place-items:center;
+  font-family:var(--f-num);font-weight:800;font-size:clamp(1.7rem,7vw,2.6rem);line-height:1;
+  transition:transform .12s ease, box-shadow .12s ease, opacity .12s ease;
+  padding:0;
+}
+.tile.zh{font-family:var(--f-display);font-weight:400;aspect-ratio:1;font-size:clamp(1.7rem,7.5vw,2.4rem)}
+.tile:active{transform:translateY(3px);box-shadow:0 2px 0 var(--tile-edge)}
+.tile.sel{transform:translateY(-6px);box-shadow:0 11px 0 var(--tile-edge),0 0 0 4px var(--op)}
+.tile.used{opacity:.25;pointer-events:none;box-shadow:none;transform:none}
+.tile.hint{animation:hint 1s ease-in-out 3}
+.tile.pop{animation:pop .35s ease-out}
+.frac{display:inline-flex;flex-direction:column;align-items:center;font-size:.72em;line-height:1}
+.frac i{font-style:normal}
+.frac i:first-child{border-bottom:3px solid currentColor;padding:0 .12em .06em}
+.frac i:last-child{padding-top:.06em}
+@keyframes pop{0%{transform:scale(.6)}70%{transform:scale(1.08)}100%{transform:scale(1)}}
+@keyframes hint{50%{box-shadow:0 5px 0 var(--tile-edge),0 0 0 5px var(--good)}}
+@keyframes shake{20%,60%{transform:translateX(-6px)}40%,80%{transform:translateX(6px)}}
+.shake{animation:shake .4s ease}
+
+.ops{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.op{border:2px solid var(--op);background:var(--op-soft);color:var(--op);border-radius:999px;font-family:var(--f-num);font-weight:800;font-size:2rem;line-height:1;padding:.3rem 0 .1rem}
+.op[aria-pressed="true"]{background:var(--op);color:var(--surface)}
+.op.hint{animation:hintop 1s ease-in-out 3}
+@keyframes hintop{50%{box-shadow:0 0 0 5px var(--good)}}
+
+/* 國字：題目詞語 + 組字算式 */
+.clue{display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center}
+.clue .lbl{font-size:.95rem;color:var(--muted)}
+.word{display:flex;gap:6px;justify-content:center;flex-wrap:wrap}
+.cell{width:3.6rem;height:3.6rem;display:grid;place-items:center;font-size:2.3rem;line-height:1;border:2px solid var(--line);border-radius:6px;background:
+  linear-gradient(var(--line),var(--line)) center/1px 100% no-repeat,
+  linear-gradient(var(--line),var(--line)) center/100% 1px no-repeat,var(--surface)}
+.cell.blank{border:2.5px dashed var(--red);color:var(--red);background:var(--red-soft)}
+.cell.filled{border-style:solid;border-color:var(--op);color:var(--op);background:var(--op-soft);cursor:pointer}
+.cell.ok{border-color:var(--good);color:var(--good);background:var(--surface)}
+.formula{display:flex;align-items:center;justify-content:center;gap:10px;font-size:1.8rem;min-height:3rem}
+.formula .slot{width:3rem;height:3rem;border:2px dashed var(--line);border-radius:10px;display:grid;place-items:center;font-size:1.9rem;line-height:1}
+.formula .slot.on{border-style:solid;border-color:var(--op);color:var(--op)}
+.formula .sym{font-family:var(--f-num);font-weight:800;color:var(--muted)}
+.meaning{max-width:30em;margin:0 auto;font-size:1.02rem;background:var(--op-soft);border-radius:12px;padding:10px 14px;text-align:left}
+.meaning b{font-weight:400;color:var(--op);margin-right:.3em}
+
+.msg{min-height:1.6em;text-align:center;font-size:.98rem;color:var(--muted);margin:0}
+.msg.warn{color:var(--red)}
+.msg.ok{color:var(--good)}
+
+.actions{display:grid;grid-template-columns:repeat(var(--a,4),1fr);gap:8px}
+.act{border:1.5px solid var(--line);background:var(--surface);border-radius:12px;padding:8px 4px;font-size:.95rem;display:flex;flex-direction:column;align-items:center;gap:2px;line-height:1.2}
+.act svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.act:disabled{opacity:.4;cursor:not-allowed}
+
+.log{background:var(--surface);border:1.5px solid var(--line);border-radius:var(--r);padding:12px 16px}
+.log h2,.howto h2{margin:0 0 6px;font-size:1rem;font-weight:400;color:var(--muted);letter-spacing:.08em}
+.log ol{margin:0;padding-left:1.4em;font-family:var(--f-num);font-weight:600;font-size:1.15rem;font-variant-numeric:tabular-nums}
+.log ol:empty::before{content:"還沒有算式，先點一張數字牌開始吧";font-family:var(--f-display);font-weight:400;font-size:.95rem;color:var(--muted);margin-left:-1.4em}
+.log .frac{font-size:.8em;vertical-align:middle}
+.log .frac i:first-child{border-bottom-width:2px}
+.log.zh ol{font-family:var(--f-display);font-weight:400;font-size:1.05rem}
+.log.zh ol:empty::before{content:"答對的字和成語會收集在這裡"}
+
+.howto{padding:4px 2px}
+.howto ol{margin:0;padding-left:1.3em;display:flex;flex-direction:column;gap:4px;max-width:36em}
+.howto p{margin:8px 0 0;font-size:.9rem;color:var(--muted)}
+
+.over{position:absolute;inset:0;background:color-mix(in srgb,var(--surface) 94%,transparent);border-radius:20px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:20px;text-align:center;overflow-y:auto}
+.stamp{font-size:2rem;color:var(--red);border:4px solid var(--red);border-radius:12px;padding:.1em .6em;transform:rotate(-8deg);animation:stamp .4s cubic-bezier(.2,1.6,.4,1)}
+.stamp.soft{color:var(--op);border-color:var(--op);font-size:1.4rem}
+@keyframes stamp{from{transform:rotate(-8deg) scale(2.2);opacity:0}to{transform:rotate(-8deg) scale(1);opacity:1}}
+.over .sol{font-family:var(--f-num);font-weight:600;font-size:1.2rem;margin:0;padding:0;list-style:none}
+.over .big{font-size:2.6rem;letter-spacing:.12em;line-height:1.2;margin:0}
+.over .gain{color:var(--muted);margin:0}
+.over .meaning{margin:0}
+/* 配合題 */
+.pairs{display:grid;grid-template-columns:var(--cols,1fr 1fr);gap:10px 14px}
+.col{display:flex;flex-direction:column;gap:10px;min-width:0}
+.item{position:relative;border:2px solid var(--line);background:var(--surface);border-radius:12px;padding:10px 12px;text-align:left;min-height:3.4rem;display:flex;align-items:center;justify-content:flex-start;font-size:1rem;line-height:1.45;min-width:0;transition:border-color .12s ease, background .12s ease}
+.item .txt{min-width:0}
+.col.left .item{background:var(--tile);color:var(--tile-ink);border-color:var(--tile-edge);box-shadow:0 3px 0 var(--tile-edge)}
+.item.mid{font-size:1.35rem;justify-content:center;text-align:center;letter-spacing:.06em}
+.item.big{font-size:2rem;justify-content:center;line-height:1}
+.item.num{font-family:var(--f-num);font-weight:600;font-size:1.35rem;justify-content:center;font-variant-numeric:tabular-nums}
+.item .frac i:first-child{border-bottom-width:2px}
+.item.sel,.col.left .item.sel{border-color:var(--op);box-shadow:0 0 0 3px var(--op)}
+.col .item.done{border-color:var(--good);background:var(--surface);color:var(--good);box-shadow:none;cursor:default}
+.item.wrong{border-color:var(--red)}
+.item.hint{animation:hintop 1s ease-in-out 3}
+.badge{position:absolute;top:-9px;left:-9px;width:1.6rem;height:1.6rem;border-radius:50%;background:var(--good);color:var(--surface);font-family:var(--f-num);font-weight:800;font-size:.95rem;display:grid;place-items:center;line-height:1;padding-top:.12rem}
+.finish{display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center}
+.finish .gain{color:var(--muted);margin:0}
+.primary{border:0;background:var(--op);color:var(--surface);border-radius:999px;padding:10px 28px;font-size:1.1rem}
+
+@media (prefers-reduced-motion: reduce){
+  *{animation:none!important;transition:none!important}
+}
+@media (max-width:420px){
+  h1{font-size:1.6rem}
+  .target .num{font-size:3rem;width:4.6rem;height:4.6rem}
+  .cell{width:3.1rem;height:3.1rem;font-size:2rem}
+}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>五年級湊湊樂<small>數學、國字、成語，一起動腦</small></h1>
+    <div class="stats">
+      <div class="stat">得分 <b id="score">0</b></div>
+      <div class="stat">連對 <b id="streak">0</b></div>
+    </div>
+  </header>
+
+  <div class="subjects" role="tablist" aria-label="選擇遊戲">
+    <button id="t-math" role="tab" data-game="math"><span class="glyph">24</span>數字湊湊樂<span>加減乘除</span></button>
+    <button id="t-word" role="tab" class="zh" data-game="word"><span class="glyph">明</span>國字拼拼樂<span>部件組字</span></button>
+    <button id="t-idiom" role="tab" class="zh" data-game="idiom"><span class="glyph">成</span>成語補補樂<span>四字成語</span></button>
+    <button id="t-match" role="tab" class="zh" data-game="match"><span class="glyph">配</span>配合題<span>左右配對</span></button>
+  </div>
+
+  <!-- ========== 數學 ========== -->
+  <div class="game" id="g-math" role="tabpanel">
+    <div class="modes" role="group" aria-label="選擇難度">
+      <button id="m-easy" data-mode="easy">暖身<span>4 張湊 10</span></button>
+      <button id="m-classic" data-mode="classic">經典 24<span>4 張湊 24</span></button>
+      <button id="m-hard" data-mode="hard">挑戰<span>5 張湊大數</span></button>
+    </div>
+    <section class="board" aria-label="數學題目">
+      <div class="target">
+        <span class="lbl">目標</span>
+        <span class="num" id="target">24</span>
+        <span class="qno" id="qno">第 1 題</span>
+      </div>
+      <div class="tiles" id="tiles"></div>
+      <div class="ops" role="group" aria-label="運算符號">
+        <button class="op" id="op-add" data-op="+" aria-label="加">+</button>
+        <button class="op" id="op-sub" data-op="−" aria-label="減">−</button>
+        <button class="op" id="op-mul" data-op="×" aria-label="乘">×</button>
+        <button class="op" id="op-div" data-op="÷" aria-label="除">÷</button>
+      </div>
+      <p class="msg" id="msg" aria-live="polite"></p>
+      <div class="actions">
+        <button class="act" id="undo"><svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg>復原</button>
+        <button class="act" id="reset"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>重來</button>
+        <button class="act" id="hint"><svg viewBox="0 0 24 24"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.3h6c0-1 .4-1.8 1-2.3A7 7 0 0 0 12 2z"/></svg>提示</button>
+        <button class="act" id="skip"><svg viewBox="0 0 24 24"><path d="M5 4l10 8-10 8z"/><path d="M19 5v14"/></svg>看答案</button>
+      </div>
+      <div class="over" id="over" hidden></div>
+    </section>
+    <section class="log" aria-label="我的算式">
+      <h2>我的算式</h2>
+      <ol id="log"></ol>
+    </section>
+    <section class="howto">
+      <h2>怎麼玩</h2>
+      <ol>
+        <li>點一張數字牌，再點一個運算符號，再點另一張數字牌，兩張牌會合成一張答案牌。</li>
+        <li>每張牌都要用到，最後剩下的那一張要剛好等於圓圈裡的目標數字。</li>
+        <li>結果不可以是負數，但可以是分數，例如 8 ÷ 3 會變成 <span class="frac" style="font-size:1em"><i>8</i><i>3</i></span>，分數也能繼續算。</li>
+      </ol>
+      <p>自己解出來得 10 分，用過提示得 5 分。電腦鍵盤也能玩：數字鍵 1–5 選牌，+ − * / 選符號，Z 復原。</p>
+    </section>
+  </div>
+
+  <!-- ========== 國字 ========== -->
+  <div class="game" id="g-word" role="tabpanel" hidden>
+    <section class="board" aria-label="國字題目">
+      <div class="clue">
+        <span class="lbl">用兩個部件，拼出空格裡的字 · <span class="qno" id="w-qno">第 1 題</span></span>
+        <div class="word" id="w-word"></div>
+      </div>
+      <div class="formula" aria-live="polite">
+        <span class="slot" id="w-s1"></span><span class="sym">+</span><span class="slot" id="w-s2"></span><span class="sym">=</span><span class="slot" id="w-s3">？</span>
+      </div>
+      <div class="tiles" id="w-tiles" style="--n:3"></div>
+      <p class="msg" id="w-msg" aria-live="polite"></p>
+      <div class="actions" style="--a:3">
+        <button class="act" id="w-clear"><svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg>重選</button>
+        <button class="act" id="w-hint"><svg viewBox="0 0 24 24"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.3h6c0-1 .4-1.8 1-2.3A7 7 0 0 0 12 2z"/></svg>提示</button>
+        <button class="act" id="w-skip"><svg viewBox="0 0 24 24"><path d="M5 4l10 8-10 8z"/><path d="M19 5v14"/></svg>看答案</button>
+      </div>
+      <div class="over" id="w-over" hidden></div>
+    </section>
+    <section class="log zh" aria-label="我拼出的字">
+      <h2>我拼出的字</h2>
+      <ol id="w-log"></ol>
+    </section>
+    <section class="howto">
+      <h2>怎麼玩</h2>
+      <ol>
+        <li>看上面的詞語，想想空格裡缺了哪個字。</li>
+        <li>從黃色積木裡點兩個部件，例如「日」和「月」，就會拼成「明」。</li>
+        <li>拼錯了沒關係，按「重選」再試一次。</li>
+      </ol>
+    </section>
+  </div>
+
+  <!-- ========== 成語 ========== -->
+  <div class="game" id="g-idiom" role="tabpanel" hidden>
+    <div class="modes" role="group" aria-label="選擇難度" style="--m:2">
+      <button id="i-fill" data-imode="fill">補兩字<span>填上缺少的字</span></button>
+      <button id="i-sort" data-imode="sort">排四字<span>整個成語自己排</span></button>
+    </div>
+    <section class="board" aria-label="成語題目">
+      <div class="clue">
+        <span class="lbl">依照意思，把成語補完整 · <span class="qno" id="i-qno">第 1 題</span></span>
+        <div class="word" id="i-word"></div>
+        <p class="meaning" id="i-mean"></p>
+      </div>
+      <div class="tiles" id="i-tiles" style="--n:3"></div>
+      <p class="msg" id="i-msg" aria-live="polite"></p>
+      <div class="actions" style="--a:3">
+        <button class="act" id="i-clear"><svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg>重選</button>
+        <button class="act" id="i-hint"><svg viewBox="0 0 24 24"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.3h6c0-1 .4-1.8 1-2.3A7 7 0 0 0 12 2z"/></svg>提示</button>
+        <button class="act" id="i-skip"><svg viewBox="0 0 24 24"><path d="M5 4l10 8-10 8z"/><path d="M19 5v14"/></svg>看答案</button>
+      </div>
+      <div class="over" id="i-over" hidden></div>
+    </section>
+    <section class="log zh" aria-label="我學會的成語">
+      <h2>我學會的成語</h2>
+      <ol id="i-log"></ol>
+    </section>
+    <section class="howto">
+      <h2>怎麼玩</h2>
+      <ol>
+        <li>先讀藍色框裡的意思，猜猜是哪一個成語。</li>
+        <li>依照順序點黃色字卡，字會從左邊的空格開始填。</li>
+        <li>填錯的字可以點一下空格把它拿回來，四個字都對就過關。</li>
+      </ol>
+    </section>
+  </div>
+
+  <!-- ========== 配合題 ========== -->
+  <div class="game" id="g-match" role="tabpanel" hidden>
+    <div class="modes" role="group" aria-label="選擇題型" style="--m:3">
+      <button id="x-idiom" data-xmode="idiom">成語<span>配意思</span></button>
+      <button id="x-char" data-xmode="char">國字<span>部件配字</span></button>
+      <button id="x-math" data-xmode="math">數學<span>算式配答案</span></button>
+    </div>
+    <section class="board" aria-label="配合題">
+      <div class="clue"><span class="lbl"><span id="x-tip"></span> · <span class="qno" id="x-qno">第 1 組</span></span></div>
+      <div class="pairs" id="x-pairs">
+        <div class="col left" id="x-left"></div>
+        <div class="col right" id="x-right"></div>
+      </div>
+      <p class="msg" id="x-msg" aria-live="polite"></p>
+      <div class="actions" id="x-actions" style="--a:3">
+        <button class="act" id="x-hint"><svg viewBox="0 0 24 24"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.3h6c0-1 .4-1.8 1-2.3A7 7 0 0 0 12 2z"/></svg>提示</button>
+        <button class="act" id="x-skip"><svg viewBox="0 0 24 24"><path d="M5 4l10 8-10 8z"/><path d="M19 5v14"/></svg>看答案</button>
+        <button class="act" id="x-new"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>換一組</button>
+      </div>
+      <div class="finish" id="x-finish" hidden></div>
+    </section>
+    <section class="howto">
+      <h2>怎麼玩</h2>
+      <ol>
+        <li>先點左邊一個黃色選項，再點右邊和它配對的答案，先點右邊也可以。</li>
+        <li>配對成功的兩個會變成綠色，並標上相同的號碼。</li>
+        <li>五對全部配完就過關。一次都沒錯得 10 分，配錯或用過提示得 5 分。</li>
+      </ol>
+    </section>
+  </div>
+</div>
+
+<script>
+(function(){
+  const $=id=>document.getElementById(id);
+  const rnd=(lo,hi)=>lo+Math.floor(Math.random()*(hi-lo+1));
+  const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=rnd(0,i);[a[i],a[j]]=[a[j],a[i]]}return a};
+  const pick=(arr,avoid)=>{let x;do{x=arr[rnd(0,arr.length-1)]}while(arr.length>1&&x===avoid);return x};
+  function say(id,t,cls){const m=$(id);m.textContent=t||'';m.className='msg'+(cls?' '+cls:'')}
+  function shakeEl(el){if(!el)return;el.classList.remove('shake');void el.offsetWidth;el.classList.add('shake')}
+
+  // ---------- 共用：分數、連對、分頁 ----------
+  const G={game:'math',score:0,streak:{math:0,word:0,idiom:0,match:0}};
+  let best={};
+  try{best=JSON.parse(localStorage.getItem('ccl-best2')||'{}')||{}}catch(e){best={}}
+  function win(game,hinted){
+    const gain=hinted?5:10;G.score+=gain;G.streak[game]++;
+    let rec=false;
+    if(G.streak[game]>(best[game]||0)){best[game]=G.streak[game];rec=G.streak[game]>1;try{localStorage.setItem('ccl-best2',JSON.stringify(best))}catch(e){}}
+    renderStats();
+    return `+${gain} 分${G.streak[game]>1?'，連續答對 '+G.streak[game]+' 題':''}${rec?'（新紀錄）':''}`;
+  }
+  function lose(game){G.streak[game]=0;renderStats()}
+  function renderStats(){$('score').textContent=G.score;$('streak').textContent=G.streak[G.game]}
+  function setGame(g){
+    G.game=g;
+    document.querySelectorAll('.subjects button').forEach(b=>b.setAttribute('aria-selected',b.dataset.game===g));
+    ['math','word','idiom','match'].forEach(k=>$('g-'+k).hidden=k!==g);
+    renderStats();
+  }
+  document.querySelectorAll('.subjects button').forEach(b=>b.addEventListener('click',()=>setGame(b.dataset.game)));
+
+  // ==========================================================
+  //  數字湊湊樂
+  // ==========================================================
+  const gcd=(a,b)=>{a=Math.abs(a);b=Math.abs(b);while(b){[a,b]=[b,a%b]}return a||1};
+  const R=(n,d=1)=>{if(d<0){n=-n;d=-d}const g=gcd(n,d);return{n:n/g,d:d/g}};
+  const add=(a,b)=>R(a.n*b.d+b.n*a.d,a.d*b.d);
+  const sub=(a,b)=>R(a.n*b.d-b.n*a.d,a.d*b.d);
+  const mul=(a,b)=>R(a.n*b.n,a.d*b.d);
+  const div=(a,b)=>R(a.n*b.d,a.d*b.n);
+  const ge=(a,b)=>a.n*b.d>=b.n*a.d;
+  const eqInt=(a,t)=>a.d===1&&a.n===t;
+  const key=a=>a.n+'/'+a.d;
+  const OPS={'+':add,'−':sub,'×':mul,'÷':div};
+
+  function candidates(a,b){
+    const c=[[add(a,b),a,'+',b],[mul(a,b),a,'×',b]];
+    if(ge(a,b))c.push([sub(a,b),a,'−',b]);
+    if(ge(b,a)&&!ge(a,b))c.push([sub(b,a),b,'−',a]);
+    if(b.n!==0)c.push([div(a,b),a,'÷',b]);
+    if(a.n!==0&&key(a)!==key(b))c.push([div(b,a),b,'÷',a]);
+    return c;
+  }
+  function solve(list,t){
+    if(list.length===1)return eqInt(list[0],t)?[]:null;
+    for(let i=0;i<list.length;i++)for(let j=i+1;j<list.length;j++){
+      const rest=list.filter((_,k)=>k!==i&&k!==j);
+      for(const [c,x,op,y] of candidates(list[i],list[j])){
+        const r=solve(rest.concat([c]),t);
+        if(r)return[{a:x,op,b:y,c}].concat(r);
+      }
+    }
+    return null;
+  }
+  function allResults(list,memo){
+    const k=list.map(key).sort().join(',');
+    if(memo.has(k))return memo.get(k);
+    const out=new Map();
+    if(list.length===1){out.set(key(list[0]),list[0])}
+    else for(let i=0;i<list.length;i++)for(let j=i+1;j<list.length;j++){
+      const rest=list.filter((_,q)=>q!==i&&q!==j);
+      for(const [c] of candidates(list[i],list[j]))
+        for(const [kk,v] of allResults(rest.concat([c]),memo))out.set(kk,v);
+    }
+    memo.set(k,out);return out;
+  }
+  function makePuzzle(mode){
+    for(let tries=0;tries<400;tries++){
+      if(mode==='easy'){
+        const nums=[0,0,0,0].map(()=>rnd(1,9));
+        if(solve(nums.map(n=>R(n)),10))return{nums,target:10};
+      }else if(mode==='classic'){
+        const nums=[0,0,0,0].map(()=>rnd(1,10));
+        if(solve(nums.map(n=>R(n)),24))return{nums,target:24};
+      }else{
+        const nums=[0,0,0,0,0].map(()=>rnd(1,9));
+        const res=[...allResults(nums.map(n=>R(n)),new Map()).values()]
+          .filter(v=>v.d===1&&v.n>=30&&v.n<=99).map(v=>v.n);
+        if(res.length)return{nums,target:res[rnd(0,res.length-1)]};
+      }
+    }
+    return mode==='easy'?{nums:[1,2,3,4],target:10}:{nums:[3,3,8,8],target:24};
+  }
+
+  let S, uid=1, popId=null;
+  function freshMath(mode,q){
+    const p=makePuzzle(mode);
+    return{mode,puzzle:p,cards:p.nums.map(n=>({id:uid++,v:R(n)})),stack:[],log:[],sel:null,op:null,hintUsed:false,done:null,q:q||1};
+  }
+  const fmt=v=>v.d===1?String(v.n):`<span class="frac"><i>${v.n}</i><i>${v.d}</i></span>`;
+  const plain=v=>v.d===1?String(v.n):v.n+'/'+v.d;
+
+  function renderMath(){
+    document.querySelectorAll('#g-math .modes button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.mode===S.mode));
+    $('target').textContent=S.puzzle.target;
+    $('qno').textContent='第 '+S.q+' 題';
+    const tiles=$('tiles');
+    tiles.style.setProperty('--n',S.puzzle.nums.length);
+    tiles.innerHTML=S.cards.map((c,i)=>
+      `<button class="tile${c.id===S.sel?' sel':''}${c.id===popId?' pop':''}" data-id="${c.id}" aria-label="第${i+1}張牌 ${plain(c.v)}" aria-pressed="${c.id===S.sel}">${fmt(c.v)}</button>`
+    ).join('');
+    popId=null;
+    document.querySelectorAll('.op').forEach(b=>b.setAttribute('aria-pressed',b.dataset.op===S.op));
+    $('log').innerHTML=S.log.map(s=>`<li>${fmt(s.a)} ${s.op} ${fmt(s.b)} = ${fmt(s.c)}</li>`).join('');
+    $('undo').disabled=!S.stack.length||!!S.done;
+    $('reset').disabled=!S.stack.length||!!S.done;
+    $('hint').disabled=!!S.done;
+    $('skip').disabled=!!S.done;
+    const o=$('over');
+    if(!S.done){o.hidden=true;o.innerHTML='';return}
+    o.hidden=false;
+    if(S.done.type==='win'){
+      o.innerHTML=`<div class="stamp">答對了！</div><p class="gain">${S.done.note}</p><button class="primary" id="next">下一題</button>`;
+    }else{
+      const sol=solve(S.puzzle.nums.map(n=>R(n)),S.puzzle.target)||[];
+      o.innerHTML=`<div class="stamp soft">參考解法</div>
+        <ol class="sol">${sol.map(s=>`<li>${fmt(s.a)} ${s.op} ${fmt(s.b)} = ${fmt(s.c)}</li>`).join('')}</ol>
+        <p class="gain">看懂了嗎？下一題換你來</p><button class="primary" id="next">下一題</button>`;
+    }
+    const n=$('next');n.addEventListener('click',nextMath);n.focus();
+  }
+
+  function clickCard(id){
+    if(S.done)return;
+    clearHint();
+    if(S.sel===null){S.sel=id;say('msg','選好了，接著點一個運算符號')}
+    else if(S.sel===id){S.sel=null;S.op=null;say('msg','')}
+    else if(S.op===null){S.sel=id;say('msg','換成這張牌，接著點一個運算符號')}
+    else{combine(S.sel,S.op,id);return}
+    renderMath();
+  }
+  function clickOp(op){
+    if(S.done)return;
+    clearHint();
+    if(S.sel===null){say('msg','先點一張數字牌，再選符號','warn');return}
+    S.op=S.op===op?null:op;
+    say('msg',S.op?'再點另一張數字牌':'選好了，接著點一個運算符號');
+    renderMath();
+  }
+  function combine(aId,op,bId){
+    const ai=S.cards.findIndex(c=>c.id===aId), bi=S.cards.findIndex(c=>c.id===bId);
+    const a=S.cards[ai].v, b=S.cards[bi].v;
+    if(op==='−'&&!ge(a,b)){say('msg',`${plain(a)} − ${plain(b)} 會變成負數，試試先點大的那張`,'warn');S.op=null;renderMath();return}
+    if(op==='÷'&&b.n===0){say('msg','不能除以 0 喔','warn');S.op=null;renderMath();return}
+    S.stack.push({cards:S.cards.map(c=>({...c})),log:S.log.slice()});
+    const c=OPS[op](a,b);
+    const nc={id:uid++,v:c};
+    S.cards[bi]=nc;S.cards.splice(ai,1);
+    S.log.push({a,op,b,c});
+    S.sel=null;S.op=null;popId=nc.id;
+    if(S.cards.length===1){
+      if(eqInt(c,S.puzzle.target)){S.done={type:'win',note:win('math',S.hintUsed)};say('msg','')}
+      else say('msg',`最後是 ${plain(c)}，和 ${S.puzzle.target} 差一點，按「復原」再試試`,'warn');
+    }else say('msg',`${plain(a)} ${op} ${plain(b)} = ${plain(c)}`,'ok');
+    renderMath();
+  }
+  function undo(){if(!S.stack.length||S.done)return;const s=S.stack.pop();S.cards=s.cards;S.log=s.log;S.sel=null;S.op=null;say('msg','退回上一步');renderMath()}
+  function reset(){if(!S.stack.length||S.done)return;const s=S.stack[0];S.cards=s.cards;S.log=[];S.stack=[];S.sel=null;S.op=null;say('msg','回到題目一開始');renderMath()}
+  let hintTimer=null;
+  function clearHint(){document.querySelectorAll('.hint').forEach(e=>e.classList.remove('hint'))}
+  function hintMath(){
+    if(S.done)return;
+    const r=solve(S.cards.map(c=>c.v),S.puzzle.target);
+    if(!r){say('msg','現在這幾張牌湊不出來了，先按「復原」退一步','warn');return}
+    S.hintUsed=true;
+    const s=r[0];
+    const ia=S.cards.findIndex(c=>key(c.v)===key(s.a));
+    const ib=S.cards.findIndex((c,i)=>i!==ia&&key(c.v)===key(s.b));
+    S.sel=null;S.op=null;renderMath();
+    const tiles=document.querySelectorAll('#tiles .tile');
+    tiles[ia]&&tiles[ia].classList.add('hint');
+    tiles[ib]&&tiles[ib].classList.add('hint');
+    document.querySelector(`.op[data-op="${s.op}"]`).classList.add('hint');
+    say('msg',`試試看：${plain(s.a)} ${s.op} ${plain(s.b)}`,'ok');
+    clearTimeout(hintTimer);hintTimer=setTimeout(clearHint,3200);
+  }
+  function skipMath(){if(S.done)return;lose('math');S.done={type:'show'};say('msg','');renderMath()}
+  function nextMath(){S=freshMath(S.mode,S.q+1);say('msg','');renderMath()}
+  function setMode(m){if(m===S.mode&&!S.stack.length)return;lose('math');S=freshMath(m,1);say('msg','');renderMath()}
+
+  $('tiles').addEventListener('click',e=>{const t=e.target.closest('.tile');if(t)clickCard(+t.dataset.id)});
+  document.querySelectorAll('.op').forEach(b=>b.addEventListener('click',()=>clickOp(b.dataset.op)));
+  document.querySelectorAll('#g-math .modes button').forEach(b=>b.addEventListener('click',()=>setMode(b.dataset.mode)));
+  $('undo').addEventListener('click',undo);
+  $('reset').addEventListener('click',reset);
+  $('hint').addEventListener('click',hintMath);
+  $('skip').addEventListener('click',skipMath);
+  document.addEventListener('keydown',e=>{
+    if(G.game!=='math'||e.metaKey||e.ctrlKey||e.altKey)return;
+    if(S.done&&(e.key==='Enter'||e.key===' ')){e.preventDefault();nextMath();return}
+    const map={'+':'+','-':'−','*':'×','x':'×','/':'÷'};
+    if(map[e.key]){e.preventDefault();clickOp(map[e.key]);return}
+    if(/^[1-5]$/.test(e.key)){const c=S.cards[+e.key-1];if(c)clickCard(c.id);return}
+    if(e.key==='z'||e.key==='Z'||e.key==='Backspace')undo();
+  });
+
+  // ==========================================================
+  //  國字拼拼樂：[答案, 部件1, 部件2, 詞語(＿是空格)]
+  // ==========================================================
+  const CHARS=[
+    ['明','日','月','聰＿'],['林','木','木','森＿'],['好','女','子','友＿'],
+    ['休','亻','木','＿假'],['信','亻','言','寫＿'],['請','言','青','＿問'],
+    ['清','氵','青','＿潔'],['晴','日','青','＿朗'],['情','忄','青','心＿'],
+    ['睛','目','青','眼＿'],['精','米','青','＿神'],['鳴','口','鳥','雞＿'],
+    ['想','相','心','＿法'],['思','田','心','＿考'],['男','田','力','＿孩'],
+    ['岩','山','石','＿石'],['尖','小','大','＿叫'],['炎','火','火','發＿'],
+    ['動','重','力','運＿'],['功','工','力','成＿'],['江','氵','工','長＿'],
+    ['河','氵','可','銀＿'],['歌','哥','欠','唱＿'],['結','糸','吉','團＿'],
+    ['鋼','金','岡','＿琴'],['湖','氵','胡','＿泊'],['銅','金','同','＿牌'],
+    ['間','門','日','時＿'],['閃','門','人','＿電'],['問','門','口','＿題'],
+    ['聞','門','耳','新＿'],['忘','亡','心','＿記'],['字','宀','子','國＿'],
+    ['安','宀','女','平＿'],['草','艹','早','＿地'],['花','艹','化','＿朵'],
+    ['星','日','生','流＿'],['唱','口','昌','＿歌'],['吹','口','欠','＿風'],
+    ['泡','氵','包','肥皂＿'],['飽','飠','包','吃＿'],['抱','扌','包','擁＿'],
+    ['校','木','交','學＿'],['姐','女','且','＿妹'],['媽','女','馬','爸＿'],
+    ['他','亻','也','其＿'],['你','亻','尔','＿好'],['位','亻','立','座＿'],
+    ['住','亻','主','居＿'],['作','亻','乍','工＿'],['伴','亻','半','同＿'],
+    ['村','木','寸','鄉＿'],['材','木','才','＿料'],['松','木','公','＿樹'],
+    ['枝','木','支','樹＿'],['汗','氵','干','流＿'],['海','氵','每','大＿'],
+    ['洗','氵','先','＿手'],['池','氵','也','水＿'],['油','氵','由','加＿'],
+    ['洋','氵','羊','海＿'],['沙','氵','少','＿灘'],['法','氵','去','方＿'],
+    ['活','氵','舌','生＿'],['浪','氵','良','波＿'],['打','扌','丁','＿球'],
+    ['拍','扌','白','＿手'],['把','扌','巴','＿握'],['指','扌','旨','手＿'],
+    ['拉','扌','立','＿麵'],['推','扌','隹','＿動'],['地','土','也','＿圖'],
+    ['場','土','昜','操＿'],['城','土','成','＿市'],['坡','土','皮','山＿'],
+    ['吃','口','乞','好＿'],['味','口','未','美＿'],['呼','口','乎','＿吸'],
+    ['和','禾','口','＿平'],['秋','禾','火','＿天'],['秒','禾','少','＿針'],
+    ['種','禾','重','＿子'],['科','禾','斗','＿學'],['紅','糸','工','＿色'],
+    ['紙','糸','氏','＿張'],['線','糸','泉','毛＿'],['細','糸','田','＿心'],
+    ['練','糸','柬','＿習'],['語','言','吾','國＿'],['話','言','舌','說＿'],
+    ['說','言','兌','小＿'],['詩','言','寺','唐＿'],['認','言','忍','＿真'],
+    ['記','言','己','日＿'],['時','日','寺','＿間'],['晚','日','免','＿上'],
+    ['暗','日','音','黑＿'],['早','日','十','＿安'],['昨','日','乍','＿天'],
+    ['眼','目','艮','＿睛'],
+    ['們','亻','門','我＿'],['何','亻','可','如＿'],['便','亻','更','方＿'],
+    ['代','亻','弋','時＿'],['件','亻','牛','文＿'],['植','木','直','＿物'],
+    ['根','木','艮','樹＿'],['板','木','反','黑＿'],['橋','木','喬','＿梁'],
+    ['汁','氵','十','果＿'],['消','氵','肖','＿息'],['波','氵','皮','＿浪'],
+    ['注','氵','主','＿意'],['決','氵','夬','＿定'],['港','氵','巷','＿口'],
+    ['吸','口','及','呼＿'],['咖','口','加','＿啡'],['啡','口','非','咖＿'],
+    ['找','扌','戈','尋＿'],['投','扌','殳','＿票'],['掃','扌','帚','打＿'],
+    ['提','扌','是','＿問'],['換','扌','奐','交＿'],['垃','土','立','＿圾'],
+    ['圾','土','及','垃＿'],['增','土','曾','＿加'],['奶','女','乃','牛＿'],
+    ['妙','女','少','奇＿'],['姓','女','生','＿名'],['始','女','台','開＿'],
+    ['怕','忄','白','害＿'],['快','忄','夬','＿樂'],['忙','忄','亡','幫＿'],
+    ['念','今','心','想＿'],['悲','非','心','＿傷'],['意','音','心','同＿'],
+    ['睡','目','垂','＿覺'],['紀','糸','己','年＿'],['約','糸','勺','＿會'],
+    ['級','糸','及','班＿'],['終','糸','冬','＿點'],['綠','糸','彔','＿色'],
+    ['計','言','十','＿算'],['討','言','寸','＿論'],['試','言','式','考＿'],
+    ['課','言','果','上＿'],['謝','言','射','感＿'],['晨','日','辰','早＿'],
+    ['景','日','京','風＿'],['暖','日','爰','溫＿'],['朋','月','月','＿友'],
+    ['期','其','月','星＿'],['胖','月','半','＿子'],['銀','金','艮','＿行'],
+    ['針','金','十','打＿'],['錯','金','昔','＿誤'],['雲','雨','云','白＿'],
+    ['雷','雨','田','打＿'],['零','雨','令','＿食'],['苦','艹','古','辛＿'],
+    ['菜','艹','采','青＿'],['芽','艹','牙','發＿'],['宇','宀','于','＿宙'],
+    ['室','宀','至','教＿'],['家','宀','豕','大＿'],['完','宀','元','＿成'],
+    ['加','力','口','＿油'],['努','奴','力','＿力'],['助','且','力','幫＿'],
+    ['理','王','里','道＿'],['球','王','求','足＿'],['現','王','見','發＿'],
+    ['玩','王','元','＿具'],['頂','丁','頁','山＿'],['順','川','頁','＿利'],
+    ['題','是','頁','問＿'],['頭','豆','頁','＿髮'],['到','至','刂','遲＿'],
+    ['利','禾','刂','順＿'],['列','歹','刂','排＿'],['院','阝','完','醫＿'],
+    ['陽','阝','昜','太＿'],['除','阝','余','＿法'],['飯','飠','反','吃＿'],
+    ['餓','飠','我','肚子＿'],['跳','足','兆','＿繩'],['路','足','各','馬＿'],
+    ['炒','火','少','＿飯'],['烤','火','考','＿肉'],['粉','米','分','麵＿'],
+    ['糖','米','唐','白＿'],['狗','犭','句','小＿'],['猴','犭','侯','＿子'],
+    ['物','牛','勿','動＿'],['特','牛','寺','＿別'],['改','己','攵','＿正'],
+    ['放','方','攵','＿學'],['外','夕','卜','＿面'],['多','夕','夕','＿少'],
+    ['騎','馬','奇','＿車']
+  ];
+  // 已知的部件組合，用來避免干擾積木也能拼出別的字
+  const COMBOS=new Set(CHARS.map(c=>[c[1],c[2]].sort().join('|')));
+  const PARTS=[...new Set(CHARS.flatMap(c=>[c[1],c[2]]))];
+  let W;
+  function freshWord(q,prev){
+    const item=pick(CHARS,prev);
+    const [ans,p1,p2]=item;
+    const pool=[p1,p2];
+    for(const c of shuffle(PARTS.filter(p=>p!==p1&&p!==p2))){
+      if(pool.length>=6)break;
+      if(pool.every(t=>!COMBOS.has([t,c].sort().join('|'))))pool.push(c);
+    }
+    const tiles=shuffle(pool).map(t=>({id:uid++,t}));
+    return{item,tiles,sel:[],hintUsed:false,done:null,q:q||1,wrong:0};
+  }
+  function renderWord(){
+    const [ans,p1,p2,clue]=W.item;
+    $('w-qno').textContent='第 '+W.q+' 題';
+    $('w-word').innerHTML=[...clue].map(ch=>ch==='＿'
+      ?`<span class="cell ${W.done?'ok':'blank'}">${W.done?ans:'？'}</span>`
+      :`<span class="cell">${ch}</span>`).join('');
+    const picked=W.sel.map(id=>W.tiles.find(t=>t.id===id).t);
+    const s1=$('w-s1'),s2=$('w-s2'),s3=$('w-s3');
+    s1.textContent=picked[0]||'';s1.className='slot'+(picked[0]?' on':'');
+    s2.textContent=picked[1]||'';s2.className='slot'+(picked[1]?' on':'');
+    s3.textContent=W.done?ans:'？';s3.className='slot'+(W.done?' on':'');
+    $('w-tiles').innerHTML=W.tiles.map(t=>
+      `<button class="tile zh${W.sel.includes(t.id)?' sel':''}" data-id="${t.id}" aria-pressed="${W.sel.includes(t.id)}">${t.t}</button>`).join('');
+    $('w-clear').disabled=!W.sel.length||!!W.done;
+    $('w-hint').disabled=!!W.done;$('w-skip').disabled=!!W.done;
+    const o=$('w-over');
+    if(!W.done){o.hidden=true;o.innerHTML='';return}
+    o.hidden=false;
+    const word=clue.replace('＿',ans);
+    o.innerHTML=(W.done.type==='win'?`<div class="stamp">答對了！</div>`:`<div class="stamp soft">答案</div>`)+
+      `<p class="big">${p1} + ${p2} = ${ans}</p><p class="gain">${word}${W.done.type==='win'?'　'+W.done.note:'　下一題換你來'}</p>
+      <button class="primary" id="w-next">下一題</button>`;
+    const n=$('w-next');n.addEventListener('click',nextWord);n.focus();
+  }
+  function wordClick(id){
+    if(W.done)return;
+    clearHint();
+    const i=W.sel.indexOf(id);
+    if(i>=0){W.sel.splice(i,1);say('w-msg','');renderWord();return}
+    W.sel.push(id);
+    if(W.sel.length<2){say('w-msg','再點一個部件');renderWord();return}
+    const [ans,p1,p2]=W.item;
+    const a=W.tiles.find(t=>t.id===W.sel[0]).t, b=W.tiles.find(t=>t.id===W.sel[1]).t;
+    if((a===p1&&b===p2)||(a===p2&&b===p1)){
+      W.done={type:'win',note:win('word',W.hintUsed)};
+      $('w-log').insertAdjacentHTML('beforeend',`<li>${p1} + ${p2} = ${ans}（${W.item[3].replace('＿',ans)}）</li>`);
+      say('w-msg','');renderWord();
+    }else{
+      W.wrong++;
+      renderWord();shakeEl(document.querySelector('#g-word .formula'));
+      say('w-msg',`「${a}」和「${b}」拼不出空格裡的字，再想想`,'warn');
+      setTimeout(()=>{if(!W.done){W.sel=[];renderWord()}},700);
+    }
+  }
+  function hintWord(){
+    if(W.done)return;
+    W.hintUsed=true;
+    const [,p1,p2]=W.item;
+    const t=W.tiles.find(x=>x.t===p1);
+    W.sel=[];renderWord();
+    const el=document.querySelector(`#w-tiles .tile[data-id="${t.id}"]`);el&&el.classList.add('hint');
+    say('w-msg',`提示：其中一個部件是「${p1}」`,'ok');
+    clearTimeout(hintTimer);hintTimer=setTimeout(clearHint,3200);
+  }
+  function nextWord(){W=freshWord(W.q+1,W.item);say('w-msg','');renderWord()}
+  $('w-tiles').addEventListener('click',e=>{const t=e.target.closest('.tile');if(t)wordClick(+t.dataset.id)});
+  $('w-clear').addEventListener('click',()=>{if(W.done)return;W.sel=[];say('w-msg','');renderWord()});
+  $('w-hint').addEventListener('click',hintWord);
+  $('w-skip').addEventListener('click',()=>{if(W.done)return;lose('word');W.done={type:'show'};say('w-msg','');renderWord()});
+
+  // ==========================================================
+  //  成語補補樂：[成語, 意思]
+  // ==========================================================
+  const IDIOMS=[
+    ['一石二鳥','做一件事，同時得到兩種好處。'],
+    ['三心二意','心意不專一，一下想這樣、一下想那樣。'],
+    ['七上八下','心裡很不安，忐忑不定。'],
+    ['半途而廢','事情做到一半就停下來，沒有堅持到底。'],
+    ['守株待兔','比喻死守舊方法、不知變通，或想不勞而獲。'],
+    ['畫蛇添足','比喻做了多餘的事，反而把事情弄壞。'],
+    ['對牛彈琴','比喻對不懂的人講道理，白費力氣。'],
+    ['亡羊補牢','比喻犯錯之後趕快補救，還不算太晚。'],
+    ['井底之蛙','比喻見識很少、眼光狹小的人。'],
+    ['狐假虎威','比喻倚靠別人的勢力來欺負人。'],
+    ['自相矛盾','比喻說話或做事前後互相衝突。'],
+    ['揠苗助長','比喻太心急，不照事情的道理去做，反而壞事。'],
+    ['熟能生巧','做得熟練了，就能找到訣竅、做得更好。'],
+    ['一心一意','心思專一，沒有別的念頭。'],
+    ['千鈞一髮','比喻情況非常危急。'],
+    ['五顏六色','形容顏色非常多。'],
+    ['九牛一毛','比喻很多很多裡面極小的一部分。'],
+    ['十全十美','形容非常完美，沒有缺點。'],
+    ['不約而同','事先沒有約好，大家的想法或行動卻一樣。'],
+    ['愛不釋手','喜歡得捨不得放下。'],
+    ['津津有味','形容吃得很香，或對事情很有興趣。'],
+    ['興高采烈','形容心情非常高興、興致很高。'],
+    ['一鳴驚人','比喻平時沒什麼表現，一做就有驚人的成績。'],
+    ['百發百中','每次射擊都命中，也比喻料事很準。'],
+    ['胸有成竹','比喻做事之前，心裡已經有完整的計畫。'],
+    ['刻舟求劍','比喻做事死板，不懂得看情況改變。'],
+    ['杯弓蛇影','比喻疑神疑鬼，自己嚇自己。'],
+    ['雪中送炭','比喻在別人最需要的時候給予幫助。'],
+    ['錦上添花','比喻好上加好、美上加美。'],
+    ['名列前茅','形容名次排在最前面。'],
+    ['有條不紊','形容做事很有條理，一點也不亂。'],
+    ['全神貫注','形容注意力非常集中。'],
+    ['迫不及待','急得不能再等下去。'],
+    ['聚精會神','集中精神，專心一意。'],
+    ['一舉兩得','做一件事，得到兩種收穫。'],
+    ['四面八方','指周圍各個地方。'],
+    ['一帆風順','比喻事情進行得非常順利。'],
+    ['一諾千金','比喻說話守信用，答應的事一定做到。'],
+    ['三言兩語','用很少的幾句話。'],
+    ['五湖四海','指全國各地。'],
+    ['六神無主','形容心慌意亂，拿不定主意。'],
+    ['千言萬語','形容想說的話非常多。'],
+    ['萬紫千紅','形容百花盛開，顏色繽紛。'],
+    ['口是心非','嘴裡說的和心裡想的不一樣。'],
+    ['手忙腳亂','形容做事慌慌張張，沒有條理。'],
+    ['目不轉睛','眼睛一直盯著看，形容非常專注。'],
+    ['東張西望','這裡看看、那裡看看，到處張望。'],
+    ['大同小異','大部分相同，只有小部分不一樣。'],
+    ['自言自語','自己對自己說話。'],
+    ['指鹿為馬','比喻故意把錯的說成對的，顛倒是非。'],
+    ['鶴立雞群','比喻才能或外表在一群人中特別突出。'],
+    ['如魚得水','比喻得到很適合自己的環境或幫手。'],
+    ['虎頭蛇尾','比喻做事開頭很有氣勢，後來卻草草結束。'],
+    ['一日千里','比喻進步或發展得非常快。'],
+    ['水落石出','比喻事情的真相完全顯露出來。'],
+    ['異口同聲','大家說的話都一樣。'],
+    ['恍然大悟','忽然明白過來。'],
+    ['人山人海','形容人非常多。'],
+    ['爭先恐後','大家搶著往前，怕落在別人後面。'],
+    ['學以致用','把學到的知識用在實際生活中。'],
+    ['一目了然','一眼就看得很清楚。'],
+    ['一知半解','知道得很少，了解得不透徹。'],
+    ['二話不說','不多說什麼，馬上就去做。'],
+    ['四分五裂','形容分散、不團結或不完整。'],
+    ['七嘴八舌','形容人多嘴雜，大家搶著說話。'],
+    ['九死一生','形容經歷很大的危險才活下來。'],
+    ['百花齊放','各種花一起盛開，也比喻大家自由發表意見。'],
+    ['千山萬水','形容路途很遙遠、很辛苦。'],
+    ['心花怒放','形容心裡非常高興。'],
+    ['眉開眼笑','形容非常高興的樣子。'],
+    ['垂頭喪氣','形容失望、提不起精神的樣子。'],
+    ['手舞足蹈','高興得手腳都跳起舞來。'],
+    ['面紅耳赤','因為害羞、生氣或著急而滿臉通紅。'],
+    ['掩耳盜鈴','比喻自己騙自己。'],
+    ['驚弓之鳥','比喻受過驚嚇，一點動靜就很害怕的人。'],
+    ['塞翁失馬','比喻暫時的損失，可能反而帶來好處。'],
+    ['濫竽充數','比喻沒有真本事的人混在內行人裡面。'],
+    ['精益求精','已經很好了，還要求更好。'],
+    ['腳踏實地','比喻做事認真、一步一步來。'],
+    ['持之以恆','長久堅持下去。'],
+    ['鍥而不捨','比喻有恆心、有毅力，堅持到底。'],
+    ['一絲不苟','做事非常認真，連小地方也不馬虎。'],
+    ['專心致志','一心一意，集中精神。'],
+    ['光明正大','心地坦白，說話做事正正當當。'],
+    ['見義勇為','看到正義的事，就勇敢地去做。'],
+    ['舉一反三','從一件事推想，弄懂其他相似的事。'],
+    ['溫故知新','複習學過的東西，從中得到新的體會。'],
+    ['不恥下問','不覺得向學問或地位比自己低的人請教是丟臉的事。'],
+    ['循序漸進','照著步驟，一步一步進行。'],
+    ['開卷有益','讀書總是有好處的。'],
+    ['實事求是','依照事實，找出真正的道理。'],
+    ['栩栩如生','形容畫或雕刻生動得像活的一樣。'],
+    ['五光十色','形容顏色鮮艷、種類很多。'],
+    ['風和日麗','風很溫和、陽光燦爛，形容天氣晴朗。'],
+    ['鳥語花香','鳥在叫、花很香，形容春天美好的景象。'],
+    ['春暖花開','春天天氣溫暖，百花盛開。'],
+    ['狼吞虎嚥','形容吃東西又急又快。'],
+    ['井井有條','形容很有條理，整整齊齊。'],
+    ['一模一樣','形狀或樣子完全相同。'],
+    ['莫名其妙','說不出其中的道理，形容事情很奇怪。']
+  ];
+  const ALLCH=[...new Set(IDIOMS.flatMap(x=>[...x[0]]))];
+  let I;
+  function freshIdiom(mode,q,prev){
+    const item=pick(IDIOMS,prev);
+    const chars=[...item[0]];
+    const blanks=mode==='sort'?[0,1,2,3]:shuffle([0,1,2,3]).slice(0,2).sort();
+    const need=blanks.map(i=>chars[i]);
+    const nExtra=mode==='sort'?2:4;
+    const extras=shuffle(ALLCH.filter(c=>!chars.includes(c))).slice(0,nExtra);
+    const tiles=shuffle([...need,...extras]).map(t=>({id:uid++,t}));
+    return{mode,item,blanks,tiles,fill:{},hintUsed:false,done:null,q:q||1};
+  }
+  function renderIdiom(){
+    document.querySelectorAll('#g-idiom .modes button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.imode===I.mode));
+    $('i-qno').textContent='第 '+I.q+' 題';
+    const chars=[...I.item[0]];
+    $('i-word').innerHTML=chars.map((ch,i)=>{
+      if(!I.blanks.includes(i))return `<span class="cell">${ch}</span>`;
+      if(I.done)return `<span class="cell ok">${ch}</span>`;
+      const f=I.fill[i];
+      return f?`<button class="cell filled" data-pos="${i}" aria-label="拿回 ${f.t}">${f.t}</button>`
+              :`<span class="cell blank">？</span>`;
+    }).join('');
+    $('i-mean').innerHTML=`<b>意思</b>${I.item[1]}`;
+    const used=Object.values(I.fill).map(f=>f.id);
+    const tl=$('i-tiles');tl.style.setProperty('--n',I.tiles.length>4?3:I.tiles.length);
+    tl.innerHTML=I.tiles.map(t=>`<button class="tile zh${used.includes(t.id)?' used':''}" data-id="${t.id}">${t.t}</button>`).join('');
+    $('i-clear').disabled=!used.length||!!I.done;
+    $('i-hint').disabled=!!I.done;$('i-skip').disabled=!!I.done;
+    const o=$('i-over');
+    if(!I.done){o.hidden=true;o.innerHTML='';return}
+    o.hidden=false;
+    o.innerHTML=(I.done.type==='win'?`<div class="stamp">答對了！</div>`:`<div class="stamp soft">答案</div>`)+
+      `<p class="big">${I.item[0]}</p><p class="meaning"><b>意思</b>${I.item[1]}</p>
+      <p class="gain">${I.done.type==='win'?I.done.note:'記起來了嗎？下一題換你來'}</p>
+      <button class="primary" id="i-next">下一題</button>`;
+    const n=$('i-next');n.addEventListener('click',nextIdiom);n.focus();
+  }
+  function idiomTile(id){
+    if(I.done)return;
+    clearHint();
+    const pos=I.blanks.find(i=>!I.fill[i]);
+    if(pos===undefined)return;
+    I.fill[pos]=I.tiles.find(t=>t.id===id);
+    const chars=[...I.item[0]];
+    if(I.blanks.every(i=>I.fill[i])){
+      const wrong=I.blanks.filter(i=>I.fill[i].t!==chars[i]);
+      if(!wrong.length){
+        I.done={type:'win',note:win('idiom',I.hintUsed)};
+        $('i-log').insertAdjacentHTML('beforeend',`<li>${I.item[0]}：${I.item[1]}</li>`);
+        say('i-msg','');renderIdiom();return;
+      }
+      wrong.forEach(i=>delete I.fill[i]);
+      renderIdiom();shakeEl($('i-word'));
+      say('i-msg',`有 ${wrong.length} 個字放錯了，已經幫你拿回來，再試試`,'warn');
+      return;
+    }
+    say('i-msg','');renderIdiom();
+  }
+  function hintIdiom(){
+    if(I.done)return;
+    I.hintUsed=true;
+    const chars=[...I.item[0]];
+    // 先拿回放錯的字，再把下一個空格的正確字卡亮起來
+    I.blanks.forEach(i=>{if(I.fill[i]&&I.fill[i].t!==chars[i])delete I.fill[i]});
+    const pos=I.blanks.find(i=>!I.fill[i]);
+    renderIdiom();
+    if(pos===undefined)return;
+    const used=Object.values(I.fill).map(f=>f.id);
+    const t=I.tiles.find(x=>x.t===chars[pos]&&!used.includes(x.id));
+    const el=t&&document.querySelector(`#i-tiles .tile[data-id="${t.id}"]`);el&&el.classList.add('hint');
+    say('i-msg',`提示：第 ${pos+1} 個字是「${chars[pos]}」`,'ok');
+    clearTimeout(hintTimer);hintTimer=setTimeout(clearHint,3200);
+  }
+  function nextIdiom(){I=freshIdiom(I.mode,I.q+1,I.item);say('i-msg','');renderIdiom()}
+  $('i-tiles').addEventListener('click',e=>{const t=e.target.closest('.tile');if(t)idiomTile(+t.dataset.id)});
+  $('i-word').addEventListener('click',e=>{const c=e.target.closest('.cell.filled');if(c&&!I.done){delete I.fill[+c.dataset.pos];say('i-msg','');renderIdiom()}});
+  $('i-clear').addEventListener('click',()=>{if(I.done)return;I.fill={};say('i-msg','');renderIdiom()});
+  $('i-hint').addEventListener('click',hintIdiom);
+  $('i-skip').addEventListener('click',()=>{if(I.done)return;lose('idiom');I.done={type:'show'};say('i-msg','');renderIdiom()});
+  document.querySelectorAll('#g-idiom .modes button').forEach(b=>b.addEventListener('click',()=>{
+    if(b.dataset.imode===I.mode)return;lose('idiom');I=freshIdiom(b.dataset.imode,1);say('i-msg','');renderIdiom();
+  }));
+
+  // ==========================================================
+  //  配合題
+  // ==========================================================
+  const DECS=[['0.5',1,2],['0.25',1,4],['0.75',3,4],['0.2',1,5],['0.4',2,5],['0.6',3,5],['0.8',4,5],['0.1',1,10],['0.3',3,10],['0.7',7,10],['0.9',9,10]];
+  const raw=(n,d)=>`<span class="frac"><i>${n}</i><i>${d}</i></span>`;
+  function mathPair(){
+    const t=rnd(0,5);
+    if(t===0){const b=rnd(3,9),a=rnd(1,b-1);return{l:`${a} ÷ ${b}`,v:R(a,b)}}
+    if(t===1){const d=rnd(4,9),a=rnd(1,d-2),b=rnd(1,d-1-a);return{l:`${raw(a,d)} + ${raw(b,d)}`,v:R(a+b,d)}}
+    if(t===2){const ds=shuffle([2,3,4,5,6]);return{l:`${raw(1,ds[0])} + ${raw(1,ds[1])}`,v:R(ds[0]+ds[1],ds[0]*ds[1])}}
+    if(t===3){const d=rnd(3,9),a=rnd(2,d-1),b=rnd(1,a-1);return{l:`${raw(a,d)} − ${raw(b,d)}`,v:R(a-b,d)}}
+    if(t===4){const d=rnd(2,6),a=rnd(1,d-1),k=rnd(2,6);return{l:`${raw(a,d)} × ${k}`,v:R(a*k,d)}}
+    const x=DECS[rnd(0,DECS.length-1)];return{l:x[0],v:R(x[1],x[2])};
+  }
+  let M;
+  function freshMatch(mode,q){
+    let pairs=[];
+    if(mode==='idiom')pairs=shuffle(IDIOMS).slice(0,5).map(x=>({l:x[0],r:x[1]}));
+    else if(mode==='char')pairs=shuffle(CHARS).slice(0,5).map(x=>({l:`${x[1]} + ${x[2]}`,r:x[0]}));
+    else{const seen=new Set(),seenL=new Set();let guard=0;
+      while(pairs.length<5&&guard++<500){const p=mathPair();const k=key(p.v);if(seen.has(k)||seenL.has(p.l))continue;seen.add(k);seenL.add(p.l);pairs.push({l:p.l,r:fmt(p.v)})}}
+    return{mode,left:pairs.map((p,i)=>({id:i,h:p.l})),right:shuffle(pairs.map((p,i)=>({id:i,h:p.r}))),sel:null,matched:{},mistakes:0,hinted:false,done:null,q:q||1};
+  }
+  const XTIP={idiom:'把成語和它的意思配成一對',char:'哪兩個部件可以拼成右邊的字？',math:'算一算，把算式和答案配成一對'};
+  function renderMatch(){
+    document.querySelectorAll('#g-match .modes button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.xmode===M.mode));
+    $('x-tip').textContent=XTIP[M.mode];
+    $('x-qno').textContent='第 '+M.q+' 組';
+    $('x-pairs').style.setProperty('--cols',M.mode==='idiom'?'2fr 3fr':'1fr 1fr');
+    const cls=side=>M.mode==='math'?'num':M.mode==='char'?(side==='R'?'big':'mid'):(side==='L'?'mid':'');
+    const item=(side,it)=>{
+      const k=M.matched[it.id];const sel=M.sel&&M.sel.side===side&&M.sel.id===it.id;
+      return `<button class="item ${cls(side)}${k?' done':''}${sel?' sel':''}" data-side="${side}" data-id="${it.id}" aria-pressed="${!!sel}">${k?`<span class="badge">${k}</span>`:''}<span class="txt">${it.h}</span></button>`;
+    };
+    $('x-left').innerHTML=M.left.map(it=>item('L',it)).join('');
+    $('x-right').innerHTML=M.right.map(it=>item('R',it)).join('');
+    $('x-actions').hidden=!!M.done;
+    const f=$('x-finish');
+    if(!M.done){f.hidden=true;f.innerHTML='';return}
+    f.hidden=false;
+    f.innerHTML=(M.done.type==='win'?`<div class="stamp">${M.mistakes||M.hinted?'完成了！':'全對！'}</div>`:`<div class="stamp soft">答案</div>`)+
+      `<p class="gain">${M.done.note}</p><button class="primary" id="x-next">下一組</button>`;
+    $('x-next').addEventListener('click',nextMatch);
+  }
+  function matchClick(side,id){
+    if(M.done||M.matched[id])return;
+    clearHint();
+    if(!M.sel||M.sel.side===side){
+      M.sel=(M.sel&&M.sel.id===id)?null:{side,id};
+      say('x-msg',M.sel?'再點另一邊和它配對的答案':'');renderMatch();return;
+    }
+    const other=M.sel;M.sel=null;
+    if(other.id===id){
+      M.matched[id]=Object.keys(M.matched).length+1;
+      if(Object.keys(M.matched).length===M.left.length){
+        M.done={type:'win',note:win('match',M.mistakes>0||M.hinted)+(M.mistakes?`（配錯 ${M.mistakes} 次）`:'')};
+        say('x-msg','');
+      }else say('x-msg','配對成功！','ok');
+      renderMatch();
+    }else{
+      M.mistakes++;renderMatch();
+      const a=document.querySelector(`#x-${other.side==='L'?'left':'right'} [data-id="${other.id}"]`);
+      const b=document.querySelector(`#x-${side==='L'?'left':'right'} [data-id="${id}"]`);
+      [a,b].forEach(e=>{if(e){e.classList.add('wrong');shakeEl(e)}});
+      setTimeout(()=>[a,b].forEach(e=>e&&e.classList.remove('wrong')),700);
+      say('x-msg','這兩個不是一對，再想想','warn');
+    }
+  }
+  function hintMatch(){
+    if(M.done)return;
+    const it=M.left.find(x=>!M.matched[x.id]);if(!it)return;
+    M.hinted=true;M.sel=null;renderMatch();
+    document.querySelectorAll(`#x-pairs [data-id="${it.id}"]`).forEach(e=>e.classList.add('hint'));
+    say('x-msg','提示：閃綠光的兩個是一對','ok');
+    clearTimeout(hintTimer);hintTimer=setTimeout(clearHint,3200);
+  }
+  function showMatch(){
+    if(M.done)return;
+    lose('match');
+    let k=Object.keys(M.matched).length;
+    M.left.forEach(x=>{if(!M.matched[x.id])M.matched[x.id]=++k});
+    M.sel=null;M.done={type:'show',note:'看清楚每一對，下一組換你來'};
+    say('x-msg','');renderMatch();
+  }
+  function nextMatch(){M=freshMatch(M.mode,M.q+1);say('x-msg','');renderMatch()}
+  $('x-pairs').addEventListener('click',e=>{const t=e.target.closest('.item');if(t)matchClick(t.dataset.side,+t.dataset.id)});
+  $('x-hint').addEventListener('click',hintMatch);
+  $('x-skip').addEventListener('click',showMatch);
+  $('x-new').addEventListener('click',nextMatch);
+  document.querySelectorAll('#g-match .modes button').forEach(b=>b.addEventListener('click',()=>{
+    if(b.dataset.xmode===M.mode)return;M=freshMatch(b.dataset.xmode,1);say('x-msg','');renderMatch();
+  }));
+
+  // ---------- 開始 ----------
+  function start(data){
+    if(data&&data.S&&data.W&&data.I){S=data.S;W=data.W;I=data.I;uid=data.uid||5000;Object.assign(G,data.G||{})}
+    else{S=freshMath('classic');W=freshWord();I=freshIdiom('fill')}
+    M=(data&&data.M)||freshMatch('idiom');
+    if(G.streak.match==null)G.streak.match=0;
+    let g=G.game;
+    try{const h=location.hash.slice(1);if(['math','word','idiom','match'].includes(h))g=h}catch(e){}
+    renderMath();renderWord();renderIdiom();renderMatch();setGame(g);
+  }
+  window.claude?.hot?.snapshot?.(()=>({S,W,I,M,G,uid}));
+  window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
+})();
+</script>
