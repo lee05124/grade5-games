@@ -73,6 +73,14 @@ h1 small{display:block;font-size:.85rem;color:var(--muted);letter-spacing:.02em}
 .subjects button span:last-child{font-size:.78rem;color:var(--muted)}
 .subjects button[aria-selected="true"]{border-color:var(--red);background:var(--red-soft)}
 .subjects button[aria-selected="true"] .glyph{color:var(--red)}
+.lesson-link{display:flex;align-items:center;gap:12px;background:var(--surface);border:2px solid var(--line);border-radius:var(--r);padding:10px 14px;color:var(--ink);text-decoration:none}
+.lesson-link:hover{border-color:var(--op)}
+.lesson-link:focus-visible{outline:3px solid var(--op);outline-offset:2px}
+.lesson-link .glyph{font-family:var(--f-display);font-size:1.4rem;line-height:1;color:var(--op);width:2.4rem;height:2.4rem;border-radius:50%;background:var(--op-soft);display:grid;place-items:center;flex:none}
+.lesson-link .txt{min-width:0}
+.lesson-link b{display:block;font-family:var(--f-display);font-weight:400;font-size:1.05rem;line-height:1.35}
+.lesson-link small{display:block;font-size:.8rem;color:var(--muted)}
+.lesson-link .go{margin-left:auto;color:var(--op);font-size:1.2rem;flex:none}
 
 .modes{display:grid;grid-template-columns:repeat(var(--m,3),1fr);gap:6px;background:var(--surface);border:1.5px solid var(--line);border-radius:var(--r);padding:5px}
 .modes button{border:0;background:transparent;border-radius:10px;padding:8px 4px;line-height:1.25;font-size:.98rem}
@@ -201,6 +209,8 @@ h1 small{display:block;font-size:.85rem;color:var(--muted);letter-spacing:.02em}
       <div class="stat">連對 <b id="streak">0</b></div>
     </div>
   </header>
+
+  <a class="lesson-link" href="chinese-lesson7.html"><span class="glyph" aria-hidden="true">課</span><span class="txt"><b>國語課文複習：第七課〈為生命找出口〉</b><small>字音、字形、語詞連連看、課文理解，附錯題本</small></span><span class="go" aria-hidden="true">→</span></a>
 
   <div class="subjects" role="tablist" aria-label="選擇遊戲">
     <button id="t-math" role="tab" data-game="math"><span class="glyph">24</span>數字湊湊樂<span>加減乘除</span></button>
