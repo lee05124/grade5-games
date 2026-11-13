@@ -94,9 +94,9 @@ h1 small{display:block;font-size:.85rem;color:var(--muted);letter-spacing:.02em}
 .target .num{font-family:var(--f-num);font-weight:800;font-size:3.6rem;line-height:1;color:var(--red);border:3px solid var(--red);border-radius:50%;width:5.4rem;height:5.4rem;display:grid;place-items:center;transform:rotate(-6deg);padding-top:.35rem}
 .qno{font-size:.85rem;color:var(--muted)}
 
-.tiles{display:grid;grid-template-columns:repeat(var(--n,4),1fr);gap:10px;min-height:7.2rem}
+.tiles{display:grid;grid-template-columns:repeat(var(--n,4),minmax(0,1fr));gap:10px;min-height:7.2rem;align-items:center}
 .tile{
-  aspect-ratio:3/4;max-width:100%;border:0;border-radius:12px;
+  aspect-ratio:3/4;width:100%;min-width:0;max-width:100%;border:0;border-radius:12px;
   background:var(--tile);color:var(--tile-ink);
   box-shadow:0 5px 0 var(--tile-edge);
   display:grid;place-items:center;
