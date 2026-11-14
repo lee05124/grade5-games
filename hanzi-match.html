@@ -1,0 +1,864 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>國字消消樂</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&family=Huninn&family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@500&display=swap">
+<style>
+/* Layout: same graph-paper 練習簿 column as 湊湊樂. Home = four mode cards. Play = HUD, star meter, 本局 chips, 7×7 yellow 字牌 board, 田字格 learning card, tools. */
+:root{
+  --paper:#F3F7FC; --grid:#DCE6F2; --surface:#FFFFFF; --line:#CBD8E8;
+  --ink:#1D2942; --muted:#5A6A86;
+  --tile:#FFD45E; --tile-edge:#D9A21E; --tile-ink:#3B2A00;
+  --op:#2E66D1; --op-soft:#E3ECFB;
+  --red:#D23B3B; --red-soft:#FBE4E4; --good:#1F8A55; --good-soft:#DDF2E6;
+  --c1:#FFD45E; --c1e:#D9A21E; --c2:#9FD4F5; --c2e:#5A9FC9; --c3:#F8AFBD; --c3e:#CB6E82;
+  --c4:#B2E0A6; --c4e:#6BA95F; --c5:#D0BEF4; --c5e:#9079CC; --cink:#24222B;
+  --f-display:"Huninn","Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
+  --f-num:"Baloo 2","Arial Rounded MT Bold","Helvetica Neue",Arial,sans-serif;
+  --f-kai:"LXGW WenKai TC","BiauKai","DFKai-SB","Kaiti TC","STKaiti",serif;
+  --f-zy:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
+  --r:14px; --t-move:280ms;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#1C2B25; --grid:#263A32; --surface:#22352D; --line:#34493F;
+    --ink:#EEF2E8; --muted:#A8B8AC;
+    --tile:#F3CB52; --tile-edge:#AD8417; --tile-ink:#2A1F00;
+    --op:#8DB6FF; --op-soft:#2A4250;
+    --red:#FF7D7D; --red-soft:#4A2D2D; --good:#6FD6A0; --good-soft:#1E3B2E;
+    --c1:#F3CB52; --c1e:#AD8417; --c2:#82BEE3; --c2e:#407FA6; --c3:#E796A6; --c3e:#A55569;
+    --c4:#97CD8B; --c4e:#518B47; --c5:#B6A2E4; --c5e:#7059AC; --cink:#1C1B22;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#1C2B25; --grid:#263A32; --surface:#22352D; --line:#34493F;
+  --ink:#EEF2E8; --muted:#A8B8AC;
+  --tile:#F3CB52; --tile-edge:#AD8417; --tile-ink:#2A1F00;
+  --op:#8DB6FF; --op-soft:#2A4250;
+  --red:#FF7D7D; --red-soft:#4A2D2D; --good:#6FD6A0; --good-soft:#1E3B2E;
+  --c1:#F3CB52; --c1e:#AD8417; --c2:#82BEE3; --c2e:#407FA6; --c3:#E796A6; --c3e:#A55569;
+  --c4:#97CD8B; --c4e:#518B47; --c5:#B6A2E4; --c5e:#7059AC; --cink:#1C1B22;
+  color-scheme:dark;
+}
+[hidden]{display:none!important}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;
+  background-color:var(--paper);
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size:24px 24px;
+  color:var(--ink);
+  font-family:var(--f-display);
+  font-size:16px; line-height:1.6;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));
+  padding-right:max(16px, env(safe-area-inset-right, 0px));
+  padding-block:20px 40px;
+}
+.wrap{max-width:560px;margin:0 auto}
+section.screen{display:flex;flex-direction:column;gap:16px}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,a:focus-visible{outline:3px solid var(--op);outline-offset:3px}
+h1{margin:0;font-size:1.9rem;font-weight:400;letter-spacing:.04em;line-height:1.2;text-wrap:balance}
+h1 small{display:block;font-size:.85rem;color:var(--muted);letter-spacing:.02em;margin-top:4px}
+h2{margin:0;font-size:1rem;font-weight:400;color:var(--muted);letter-spacing:.08em}
+
+/* ---------- home ---------- */
+.modegrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+@media (max-width:460px){.modegrid{grid-template-columns:1fr}}
+.mode{appearance:none;text-align:left;background:var(--surface);border:2px solid var(--line);border-radius:var(--r);
+  padding:12px 14px 14px;display:flex;flex-direction:column;gap:8px;transition:border-color .15s,transform .15s}
+.mode:hover{border-color:var(--op)}
+.mode:active{transform:scale(.99)}
+.mode .top{display:flex;align-items:center;gap:10px}
+.mode .nm{font-size:1.2rem;line-height:1.3}
+.mode .stars{margin-left:auto}
+.mode .d{font-size:.9rem;color:var(--muted);line-height:1.5;margin:0}
+.ex{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:.95rem}
+.mini{width:2rem;height:2rem;border-radius:7px;background:var(--tile);box-shadow:0 2px 0 var(--tile-edge);color:var(--tile-ink);
+  display:grid;place-items:center;font-family:var(--f-kai);font-weight:700;font-size:1.2rem;line-height:1}
+.mini[data-c="3"]{background:var(--c3);box-shadow:0 2px 0 var(--c3e);color:var(--cink)}
+.ex .arrow{color:var(--muted);margin-inline:2px}
+.badge{width:2.4rem;height:2.4rem;flex:none;border-radius:10px;background:var(--op-soft);color:var(--op);display:grid;place-items:center;
+  font-family:var(--f-kai);font-weight:700;font-size:1.35rem;line-height:1}
+.stars{font-size:1.05rem;letter-spacing:1px;white-space:nowrap;line-height:1}
+.stars i{font-style:normal;color:var(--line)}
+.stars i.on{color:#E9A817}
+.panel{background:var(--surface);border:1.5px solid var(--line);border-radius:var(--r);padding:12px 16px}
+.panel ol{margin:6px 0 0;padding-left:1.3em;display:flex;flex-direction:column;gap:4px}
+details.panel summary{cursor:pointer;color:var(--muted);letter-spacing:.06em}
+details.panel summary:focus-visible{outline:3px solid var(--op);outline-offset:3px;border-radius:4px}
+.bank h3{margin:14px 0 4px;font-size:1rem;font-weight:400;color:var(--op)}
+.bank p{margin:0 0 4px;font-size:.92rem;line-height:1.7}
+.bank .kai{font-family:var(--f-kai);font-size:1.08rem}
+.bank .note{color:var(--muted);font-size:.85rem}
+.foot{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;font-size:.9rem}
+.chip-btn{appearance:none;border:1.5px solid var(--line);background:var(--surface);border-radius:999px;padding:4px 14px;font-size:.88rem;color:var(--ink);text-decoration:none;display:inline-block}
+.chip-btn:hover{border-color:var(--op)}
+
+/* ---------- play ---------- */
+.hud{display:flex;align-items:center;gap:6px}
+.back{appearance:none;border:0;background:none;color:var(--op);padding:4px 0;font-size:.95rem;white-space:nowrap;flex:none}
+.hud .ttl{font-size:1.1rem;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stat{flex:none;background:var(--surface);border:1.5px solid var(--line);border-radius:999px;padding:3px 10px;font-size:.85rem;display:flex;gap:6px;align-items:baseline;white-space:nowrap}
+.stat b{font-family:var(--f-num);font-size:1.2rem;font-variant-numeric:tabular-nums;font-weight:800;min-width:1.4em;text-align:right}
+.stat.low b{color:var(--red)}
+.meter{position:relative;height:10px;background:var(--surface);border:1.5px solid var(--line);border-radius:999px;margin:6px 4px 10px}
+.meter .fill{position:absolute;inset:0 auto 0 0;width:0;border-radius:999px;background:var(--good);transition:width .4s ease}
+.meter .mk{position:absolute;top:50%;transform:translate(-50%,-50%);font-size:1.15rem;line-height:1;color:var(--line);text-shadow:0 0 0 transparent}
+.meter .mk.on{color:#E9A817}
+.chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.chips .lbl{font-size:.82rem;color:var(--muted);margin-right:2px}
+.chip{border:1.5px solid var(--line);background:var(--surface);border-radius:999px;padding:1px 10px;font-size:.9rem;line-height:1.6;display:inline-flex;align-items:center;gap:4px}
+.chip .g{font-family:var(--f-kai);font-weight:700;font-size:1.05rem;color:var(--op)}
+.chip.zy{font-family:var(--f-zy)}
+.chip .sw{width:1.3rem;height:1.3rem;border-radius:5px;display:grid;place-items:center;font-family:var(--f-kai);font-weight:700;color:var(--cink)}
+.chip.word{font-family:var(--f-kai);font-size:1rem}
+.chip.word.got{background:var(--good-soft);border-color:var(--good);color:var(--good)}
+.chip.word.got::before{content:"✓";font-family:var(--f-display);font-size:.8rem}
+.boardwrap{background:var(--surface);border:1.5px solid var(--line);border-radius:20px;padding:6px}
+#board{position:relative;width:100%;aspect-ratio:1;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none;
+  container-type:inline-size;border-radius:14px;outline:none}
+#board:focus-visible{box-shadow:0 0 0 3px var(--op)}
+.tile{position:absolute;left:0;top:0;width:calc(100% / 7);height:calc(100% / 7);
+  transition:transform var(--t-move) cubic-bezier(.3,.75,.4,1);will-change:transform}
+.face{--bg:var(--tile);--edge:var(--tile-edge);position:absolute;inset:3px;border-radius:10px;background:var(--bg);box-shadow:0 3px 0 var(--edge);color:var(--tile-ink);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;
+  font-family:var(--f-kai);font-weight:700;line-height:1;font-size:26px;font-size:8.6cqw;
+  transition:transform .18s ease, opacity .2s ease, box-shadow .15s ease}
+.face[data-c]{color:var(--cink)}
+.face[data-c="1"]{--bg:var(--c1);--edge:var(--c1e)}
+.face[data-c="2"]{--bg:var(--c2);--edge:var(--c2e)}
+.face[data-c="3"]{--bg:var(--c3);--edge:var(--c3e)}
+.face[data-c="4"]{--bg:var(--c4);--edge:var(--c4e)}
+.face[data-c="5"]{--bg:var(--c5);--edge:var(--c5e)}
+.face .zy{display:none;font-family:var(--f-zy);font-weight:500;font-size:9px;font-size:2.5cqw;letter-spacing:0;margin-top:2px;opacity:.85}
+#board.zy-on .face .zy{display:block}
+#board.zy-on .face{font-size:7.2cqw}
+.tile.sel .face{transform:translateY(-3px);box-shadow:0 5px 0 var(--edge),0 0 0 3px var(--op)}
+.tile.hint .face{animation:hint .9s ease-in-out 3}
+@keyframes hint{50%{transform:scale(1.1);box-shadow:0 3px 0 var(--edge),0 0 0 4px var(--good)}}
+.tile.gone .face{transform:scale(.25) rotate(-8deg);opacity:0}
+#board.kbd .tile.cur::after{content:"";position:absolute;inset:0;border:2.5px dashed var(--op);border-radius:12px;pointer-events:none}
+.pop{position:absolute;transform:translate(-50%,-50%);font-family:var(--f-num);font-weight:800;font-size:1.4rem;color:var(--red);
+  pointer-events:none;animation:rise .8s ease-out forwards;text-shadow:0 1px 0 var(--surface),0 0 6px var(--surface);white-space:nowrap;z-index:5}
+@keyframes rise{from{opacity:0;margin-top:6px}20%{opacity:1}to{opacity:0;margin-top:-34px}}
+
+.card{position:relative;display:flex;gap:14px;align-items:center;background:var(--surface);border:1.5px solid var(--line);border-radius:var(--r);padding:12px 14px;min-height:96px}
+.tzg{display:flex;gap:4px;flex:none}
+.tz{width:4.2rem;height:4.2rem;display:grid;place-items:center;border:2px solid var(--red);font-family:var(--f-kai);font-weight:700;font-size:2.9rem;line-height:1;color:var(--red);
+  background:
+    linear-gradient(var(--red-soft),var(--red-soft)) center/1.5px 100% no-repeat,
+    linear-gradient(var(--red-soft),var(--red-soft)) center/100% 1.5px no-repeat,var(--surface)}
+.cinfo{min-width:0;flex:1}
+.cinfo p{margin:0}
+.ctitle{font-size:1.1rem;line-height:1.4}
+.cbody{font-size:1rem;line-height:1.6;color:var(--muted)}
+.cbody b,.rlist b.k{font-weight:700;color:var(--red);font-family:var(--f-kai)}
+.kai{font-family:var(--f-kai);font-size:1.08em;color:var(--ink)}
+.combo{position:absolute;top:-10px;right:10px;background:var(--red);color:var(--surface);border-radius:999px;padding:0 10px;font-size:.85rem;line-height:1.6}
+.tools{display:grid;grid-template-columns:repeat(var(--n,2),minmax(0,1fr));gap:8px}
+.act{border:1.5px solid var(--line);background:var(--surface);border-radius:12px;padding:8px 4px;font-size:.95rem;display:flex;flex-direction:column;align-items:center;gap:2px;line-height:1.2}
+.act svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.act[aria-pressed="true"]{border-color:var(--op);background:var(--op-soft);color:var(--op)}
+.act:disabled{opacity:.4;cursor:not-allowed}
+.msg{min-height:1.6em;text-align:center;font-size:.95rem;color:var(--muted);margin:-6px 0 0}
+.msg.warn{color:var(--red)}
+
+/* ---------- result ---------- */
+.result-head{text-align:center;display:flex;flex-direction:column;gap:4px;align-items:center}
+.result-head .big{font-family:var(--f-num);font-weight:800;font-size:4rem;line-height:1;color:var(--red);font-variant-numeric:tabular-nums}
+.result-head .big small{font-family:var(--f-display);font-weight:400;font-size:1.1rem;color:var(--muted);margin-left:4px}
+.result-head .stars{font-size:2.4rem;letter-spacing:6px}
+.result-head p{margin:0}
+.rlist{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column;gap:6px}
+.rlist li{border-left:4px solid var(--tile-edge);padding:2px 0 2px 10px;line-height:1.6}
+.rlist li.miss{border-left-color:var(--line);color:var(--muted)}
+.btns{display:grid;gap:10px}
+.btn{appearance:none;border:0;border-radius:12px;padding:12px 16px;font-size:1.05rem;background:var(--op);color:var(--surface)}
+.btn.ghost{background:var(--surface);color:var(--ink);border:1.5px solid var(--line)}
+.btn:hover{filter:brightness(1.06)}
+
+@media (prefers-reduced-motion: reduce){
+  *{animation:none!important;transition-duration:.01ms!important}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ========== 首頁 ========== -->
+  <section class="screen" id="home">
+    <header>
+      <h1>國字消消樂<small>交換相鄰的字，讓三個字連成一線</small></h1>
+    </header>
+    <div class="modegrid" id="modegrid"></div>
+    <section class="panel">
+      <h2>怎麼玩</h2>
+      <ol>
+        <li>點一個字，再點上下左右相鄰的字，兩個字會交換。也可以用手指直接滑。</li>
+        <li>換完能消才算一步；不能消的話會自動換回來，不扣步數。</li>
+        <li>每局 20 步。一次消越多字、連續消越多次，分數越高。</li>
+        <li>卡住了就按「提示」，會有兩個字閃一閃。</li>
+      </ol>
+    </section>
+    <details class="panel bank" id="bank">
+      <summary>字庫一覽（給家長核對）</summary>
+      <div id="bankBody"></div>
+    </details>
+    <div class="foot">
+      <a class="chip-btn" href="index.html">← 五年級湊湊樂</a>
+      <button class="chip-btn" id="soundBtn" type="button">音效：開</button>
+    </div>
+  </section>
+
+  <!-- ========== 遊戲 ========== -->
+  <section class="screen" id="play" hidden>
+    <div class="hud">
+      <button class="back" type="button" id="backBtn">← 選模式</button>
+      <span class="ttl" id="pTitle"></span>
+      <span class="stat" id="movesStat">步數 <b id="pMoves">20</b></span>
+      <span class="stat">分數 <b id="pScore">0</b></span>
+    </div>
+    <div class="meter" id="meter" aria-hidden="true">
+      <span class="fill" id="meterFill"></span>
+      <span class="mk" id="mk1">★</span><span class="mk" id="mk2">★</span><span class="mk" id="mk3">★</span>
+    </div>
+    <div class="chips" id="chips"></div>
+    <div class="boardwrap">
+      <div id="board" tabindex="0" aria-label="字牌盤面。可以用方向鍵移動，按 Enter 選字，再選相鄰的字交換。"></div>
+    </div>
+    <div class="card" id="card" aria-live="polite">
+      <div class="tzg" id="cBig"></div>
+      <div class="cinfo"><p class="ctitle" id="cTitle"></p><p class="cbody" id="cBody"></p></div>
+      <span class="combo" id="cCombo" hidden></span>
+    </div>
+    <p class="msg" id="msg"></p>
+    <div class="tools" id="tools">
+      <button class="act" id="hintBtn" type="button"><svg viewBox="0 0 24 24"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.3h6c0-1 .4-1.8 1-2.3A7 7 0 0 0 12 2z"/></svg>提示</button>
+      <button class="act" id="zyBtn" type="button" aria-pressed="false" hidden><svg viewBox="0 0 24 24"><path d="M4 6h10"/><path d="M9 6v12"/><path d="M15 12h5"/><path d="M17.5 9.5v7"/></svg>顯示注音</button>
+      <button class="act" id="newBtn" type="button"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>換一局</button>
+    </div>
+  </section>
+
+  <!-- ========== 成績 ========== -->
+  <section class="screen" id="result" hidden>
+    <div class="result-head">
+      <h2 id="rTitle"></h2>
+      <p class="big"><span id="rScore">0</span><small>分</small></p>
+      <div class="stars" id="rStars"></div>
+      <p id="rLine"></p>
+    </div>
+    <section class="panel">
+      <h2 id="rListTitle">這局學到的</h2>
+      <ul class="rlist" id="rList"></ul>
+    </section>
+    <div class="btns">
+      <button class="btn" id="againBtn" type="button">再玩一局</button>
+      <button class="btn ghost" id="homeBtn" type="button">換模式</button>
+    </div>
+  </section>
+</div>
+
+<script>
+(function(){
+"use strict";
+/*DATA-START*/
+// 偏旁：[偏旁字形(足字旁不顯示), 名稱, 左邊是這個偏旁的字]
+const RADICALS = [
+ ['氵','三點水','河湖海洋流浪沙清洗港'],
+ ['扌','提手旁','打拉推抱拍找指握掃搬'],
+ ['木','木字旁','林樹校根椅板橋松桃植'],
+ ['亻','單人旁','你他們住休作位低信例'],
+ ['口','口字旁','吃喝唱吹叫吸呼喊嘴咬'],
+ ['言','言字旁','說話語讀請記詩課謝認'],
+ ['糸','絞絲旁','紅紙細線練結給級綠織'],
+ ['金','金字旁','錢鐵銀鏡鉛針鐘鋼錯鍋'],
+ ['火','火字旁','燈燒炒烤爐煙燃燭炸爆'],
+ ['忄','豎心旁','情快慢怕忙懂恨悄惜憐'],
+ ['','足字旁','跑跳路踢跟距蹲踩跌跨'],
+ ['目','目字旁','眼睛睡眨盯瞧瞪睜眠瞄'],
+ ['日','日字旁','明晴晚時暗昨曬映暖曉'],
+ ['女','女字旁','媽姐妹奶好她姑娘婚姓'],
+ ['石','石字旁','破碗碰磚礦確碎硬研碌'],
+ ['土','土字旁','地場城坡塊堆增填塔埋'],
+ ['米','米字旁','粉粒糖精粗糕糧'],
+ ['禾','禾字旁','秋種和科秒程稻積穩']
+];
+// 同音（聲調相同）：[注音, "字+詞語" 以空格分開]；避開破音字與兩岸讀音不同的字
+const SOUNDS = [
+ ['ㄐㄧㄥˋ','竟究竟 境環境 鏡鏡子 競競賽 敬尊敬 靜安靜 淨乾淨'],
+ ['ㄌㄧˋ','力力氣 立站立 利利用 例例子 歷歷史 厲厲害 粒米粒 勵鼓勵'],
+ ['ㄕˋ','事故事 市城市 世世界 式方式 試考試 視電視 示表示 釋解釋'],
+ ['ㄧˋ','意意思 義意義 議會議 億一億 藝藝術 憶回憶 益利益 譯翻譯'],
+ ['ㄓˋ','至至少 志意志 製製作 制制服 致一致 智智慧 置位置 誌雜誌'],
+ ['ㄐㄧㄢˋ','件文件 建建築 健健康 鍵鍵盤 劍寶劍 箭弓箭 艦軍艦 踐實踐'],
+ ['ㄍㄨㄥ','工工作 公公園 功成功 攻攻擊 宮皇宮 恭恭喜 弓弓箭'],
+ ['ㄑㄧㄥ','青青蛙 清清楚 輕輕鬆 蜻蜻蜓 氫氫氣'],
+ ['ㄈㄨˋ','付付錢 附附近 負負責 婦婦女 副副班長 富富有 復恢復 複複習'],
+ ['ㄩˋ','玉玉石 浴浴室 遇遇見 預預習 域區域 寓公寓 裕富裕 譽榮譽'],
+ ['ㄏㄨㄤˊ','黃黃色 皇皇帝 煌輝煌 蝗蝗蟲 凰鳳凰 惶惶恐'],
+ ['ㄓㄨˋ','住住家 注注意 助幫助 祝祝福 柱柱子 駐駐守 蛀蛀牙']
+];
+// 形近字：每組 "字|注音|詞語"（注音是該詞語裡的讀音）
+const SIMILAR = [
+ '青|ㄑㄧㄥ|青草 清|ㄑㄧㄥ|清水 晴|ㄑㄧㄥˊ|晴天 情|ㄑㄧㄥˊ|心情 請|ㄑㄧㄥˇ|請問 睛|ㄐㄧㄥ|眼睛 精|ㄐㄧㄥ|精神 靜|ㄐㄧㄥˋ|安靜',
+ '包|ㄅㄠ|書包 抱|ㄅㄠˋ|擁抱 飽|ㄅㄠˇ|吃飽 跑|ㄆㄠˇ|跑步 泡|ㄆㄠˋ|泡茶 袍|ㄆㄠˊ|長袍 炮|ㄆㄠˋ|鞭炮',
+ '方|ㄈㄤ|方向 放|ㄈㄤˋ|放學 房|ㄈㄤˊ|房間 防|ㄈㄤˊ|預防 訪|ㄈㄤˇ|拜訪 芳|ㄈㄤ|芬芳 妨|ㄈㄤˊ|妨礙',
+ '令|ㄌㄧㄥˋ|命令 冷|ㄌㄥˇ|寒冷 領|ㄌㄧㄥˇ|領帶 鈴|ㄌㄧㄥˊ|鈴聲 零|ㄌㄧㄥˊ|零分 齡|ㄌㄧㄥˊ|年齡',
+ '交|ㄐㄧㄠ|交通 校|ㄒㄧㄠˋ|學校 較|ㄐㄧㄠˋ|比較 郊|ㄐㄧㄠ|郊外 咬|ㄧㄠˇ|咬一口 效|ㄒㄧㄠˋ|效果 餃|ㄐㄧㄠˇ|水餃',
+ '采|ㄘㄞˇ|風采 採|ㄘㄞˇ|採花 彩|ㄘㄞˇ|彩色 菜|ㄘㄞˋ|青菜 睬|ㄘㄞˇ|理睬',
+ '竟|ㄐㄧㄥˋ|究竟 境|ㄐㄧㄥˋ|環境 鏡|ㄐㄧㄥˋ|鏡子 競|ㄐㄧㄥˋ|競爭 章|ㄓㄤ|文章 障|ㄓㄤˋ|障礙',
+ '錢|ㄑㄧㄢˊ|零錢 淺|ㄑㄧㄢˇ|深淺 殘|ㄘㄢˊ|殘缺 踐|ㄐㄧㄢˋ|實踐 賤|ㄐㄧㄢˋ|貴賤 棧|ㄓㄢˋ|客棧',
+ '喝|ㄏㄜ|喝水 渴|ㄎㄜˇ|口渴 歇|ㄒㄧㄝ|歇腳 揭|ㄐㄧㄝ|揭開 竭|ㄐㄧㄝˊ|竭力',
+ '憐|ㄌㄧㄢˊ|可憐 鄰|ㄌㄧㄣˊ|鄰居 磷|ㄌㄧㄣˊ|磷光 鱗|ㄌㄧㄣˊ|魚鱗 麟|ㄌㄧㄣˊ|麒麟',
+ '皮|ㄆㄧˊ|皮膚 疲|ㄆㄧˊ|疲倦 被|ㄅㄟˋ|被子 波|ㄅㄛ|波浪 坡|ㄆㄛ|山坡 破|ㄆㄛˋ|破洞 披|ㄆㄧ|披風'
+];
+// 組詞：[主題, 詞語]；每局用一個主題的字，盤面上任何兩字詞都從全部詞語判斷
+const WORD_SETS = [
+ ['校園','學生 學校 學習 生活 活動 運動 動物 校園 花園 開花 開心 心情 生物 開學 生動 開動 花生'],
+ ['大自然','天空 空氣 氣流 流水 水果 果實 結實 大地 天地 山水 高山 高大 天氣 大氣 水流 結果 空地 高空 山地'],
+ ['第七課','逆風 逆境 順風 順境 環境 強風 堅強 堅持 意志 意外 外面'],
+ ['一家人','家人 人們 大家 大人 父母 母親 父親 親人 朋友 好友 友好 好人 人家 親友'],
+ ['出門去','飛機 飛行 行人 人口 出口 口水 水手 手機 出生 生命 人生 人手 出手']
+];
+/*ENGINE-START*/
+const ROWS = 7, COLS = 7, MOVES = 20, NTYPES = 5;
+const DICT = new Set(WORD_SETS.flatMap(s => s[1].split(' ')));
+function rint(n){ return Math.floor(Math.random() * n); }
+function shuffle(a){ a = a.slice(); for(let i = a.length - 1; i > 0; i--){ const j = rint(i + 1); const t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
+function parseSimilar(s){ return s.split(' ').map(x => { const p = x.split('|'); return {t:p[0], z:p[1], w:p[2]}; }); }
+function parseSound(s){ return s[1].split(' ').map(x => ({t:x[0], w:x.slice(1), z:s[0]})); }
+
+function makeState(mode, pick){
+  const S = {mode, types:[], g:null, uid:0, words:[], theme:'', set:null};
+  if(mode === 'radical'){
+    const src = pick != null ? [RADICALS[pick]] : shuffle(RADICALS).slice(0, NTYPES);
+    S.types = src.map(r => ({k:r[1], glyph:r[0], name:r[1], items:Array.from(r[2]).map(t => ({t}))}));
+  }else if(mode === 'sound'){
+    S.types = shuffle(SOUNDS).slice(0, NTYPES).map(s => ({k:s[0], z:s[0], items:parseSound(s)}));
+  }else if(mode === 'same'){
+    const set = parseSimilar(SIMILAR[pick != null ? pick : rint(SIMILAR.length)]);
+    S.set = set;
+    S.types = shuffle(set).slice(0, NTYPES).map((it, i) => ({k:it.t, ci:i + 1, items:[it]}));
+  }else{
+    const ws = WORD_SETS[pick != null ? pick : rint(WORD_SETS.length)];
+    S.theme = ws[0];
+    const chars = Array.from(new Set(Array.from(ws[1].replace(/ /g, ''))));
+    S.words = Array.from(DICT).filter(w => Array.from(w).every(ch => chars.includes(ch)));
+    S.types = chars.map(t => ({k:t, items:[{t}]}));
+  }
+  return S;
+}
+function newTile(S, type){
+  if(!type.q || !type.q.length) type.q = shuffle(type.items);
+  const it = type.q.pop();
+  return {id:++S.uid, k:type.k, t:it.t, z:it.z || '', w:it.w || '', ci:type.ci || 0};
+}
+function randType(S){ return S.types[rint(S.types.length)]; }
+function makesMatch(S, g, r, c, tile){
+  if(S.mode === 'word'){
+    return (c > 0 && DICT.has(g[r][c-1].t + tile.t)) || (r > 0 && DICT.has(g[r-1][c].t + tile.t));
+  }
+  return (c >= 2 && g[r][c-1].k === tile.k && g[r][c-2].k === tile.k) ||
+         (r >= 2 && g[r-1][c].k === tile.k && g[r-2][c].k === tile.k);
+}
+function fillBoard(S){
+  for(let tries = 0; tries < 300; tries++){
+    const g = [];
+    for(let r = 0; r < ROWS; r++){
+      g.push([]);
+      for(let c = 0; c < COLS; c++){
+        let tile, n = 0;
+        do { tile = newTile(S, randType(S)); } while(makesMatch(S, g, r, c, tile) && ++n < 60);
+        g[r].push(tile);
+      }
+    }
+    S.g = g;
+    if(!findMatches(S).hits.length && findMoves(S, 1).length) return true;
+  }
+  return false;
+}
+function findMatches(S){
+  const g = S.g, hits = [], cells = new Set();
+  if(S.mode === 'word'){
+    for(let r = 0; r < ROWS; r++) for(let c = 0; c < COLS; c++){
+      if(c + 1 < COLS && DICT.has(g[r][c].t + g[r][c+1].t)) hits.push({w:g[r][c].t + g[r][c+1].t, cells:[[r,c],[r,c+1]]});
+      if(r + 1 < ROWS && DICT.has(g[r][c].t + g[r+1][c].t)) hits.push({w:g[r][c].t + g[r+1][c].t, cells:[[r,c],[r+1,c]]});
+    }
+  }else{
+    for(let r = 0; r < ROWS; r++){
+      let c = 0;
+      while(c < COLS){ let e = c + 1; while(e < COLS && g[r][e].k === g[r][c].k) e++;
+        if(e - c >= 3){ const cs = []; for(let x = c; x < e; x++) cs.push([r,x]); hits.push({k:g[r][c].k, cells:cs}); }
+        c = e; }
+    }
+    for(let c = 0; c < COLS; c++){
+      let r = 0;
+      while(r < ROWS){ let e = r + 1; while(e < ROWS && g[e][c].k === g[r][c].k) e++;
+        if(e - r >= 3){ const cs = []; for(let y = r; y < e; y++) cs.push([y,c]); hits.push({k:g[r][c].k, cells:cs}); }
+        r = e; }
+    }
+  }
+  hits.forEach(h => h.cells.forEach(([r,c]) => cells.add(r * COLS + c)));
+  return {hits, cells};
+}
+function swapG(g, r1, c1, r2, c2){ const t = g[r1][c1]; g[r1][c1] = g[r2][c2]; g[r2][c2] = t; }
+function localMatch(S, r, c){
+  const g = S.g, t = g[r][c];
+  if(S.mode === 'word'){
+    return (c > 0 && DICT.has(g[r][c-1].t + t.t)) || (c + 1 < COLS && DICT.has(t.t + g[r][c+1].t)) ||
+           (r > 0 && DICT.has(g[r-1][c].t + t.t)) || (r + 1 < ROWS && DICT.has(t.t + g[r+1][c].t));
+  }
+  let a = c, b = c; while(a > 0 && g[r][a-1].k === t.k) a--; while(b + 1 < COLS && g[r][b+1].k === t.k) b++;
+  if(b - a >= 2) return true;
+  a = r; b = r; while(a > 0 && g[a-1][c].k === t.k) a--; while(b + 1 < ROWS && g[b+1][c].k === t.k) b++;
+  return b - a >= 2;
+}
+function findMoves(S, limit){
+  const g = S.g, out = [];
+  for(let r = 0; r < ROWS; r++) for(let c = 0; c < COLS; c++){
+    for(const [dr, dc] of [[0,1],[1,0]]){
+      const r2 = r + dr, c2 = c + dc;
+      if(r2 >= ROWS || c2 >= COLS) continue;
+      if(g[r][c].k === g[r2][c2].k) continue;
+      swapG(g, r, c, r2, c2);
+      const ok = localMatch(S, r, c) || localMatch(S, r2, c2);
+      swapG(g, r, c, r2, c2);
+      if(ok){ out.push([{r, c}, {r:r2, c:c2}]); if(limit && out.length >= limit) return out; }
+    }
+  }
+  return out;
+}
+// 組詞模式：新補進來的字不直接和鄰字組成詞，連消只來自掉落的舊字，降低運氣成分
+function wordAt(S, g, r, c, t){
+  const L = c > 0 && g[r][c-1], R = c + 1 < COLS && g[r][c+1], U = r > 0 && g[r-1][c], D = r + 1 < ROWS && g[r+1][c];
+  return !!((L && DICT.has(L.t + t.t)) || (R && DICT.has(t.t + R.t)) || (U && DICT.has(U.t + t.t)) || (D && DICT.has(t.t + D.t)));
+}
+function collapse(S){
+  const g = S.g, spawned = [], empties = [];
+  for(let c = 0; c < COLS; c++){
+    let w = ROWS - 1;
+    for(let r = ROWS - 1; r >= 0; r--){
+      if(g[r][c]){ if(w !== r){ g[w][c] = g[r][c]; g[r][c] = null; } w--; }
+    }
+    empties.push(w + 1);
+  }
+  for(let c = 0; c < COLS; c++){
+    for(let r = empties[c] - 1; r >= 0; r--){
+      let t, n = 0;
+      do { t = newTile(S, randType(S)); } while(S.mode === 'word' && wordAt(S, g, r, c, t) && ++n < 40);
+      g[r][c] = t; spawned.push({tile:t, r, c, from:r - empties[c]});
+    }
+  }
+  return spawned;
+}
+function scoreOf(S, m, combo){
+  if(S.mode === 'word') return m.hits.length * 30 * combo;
+  let p = m.cells.size * 10 * combo;
+  m.hits.forEach(h => { if(h.cells.length >= 5) p += 50; else if(h.cells.length === 4) p += 20; });
+  return p;
+}
+/*ENGINE-END*/
+
+/* 星等門檻：每種模式各模擬 400 局校準。2 星約為「隨便走合法步」的中位數，3 星約為「每步挑消最多」的中位數 */
+const STARS = {radical:[1500, 2000, 2500], sound:[1500, 2000, 2500], same:[1500, 2000, 2500], word:[1000, 1350, 1700]};
+
+const MODE = {
+  radical:{name:'偏旁消消', badge:'偏', head:'本局偏旁',
+    d:'左邊偏旁一樣的三個字連成一線就消。',
+    ex:'<span class="mini">河</span><span class="mini">湖</span><span class="mini">海</span><span class="arrow">→</span>左邊都是「氵」',
+    intro:['偏','把左邊偏旁一樣的三個字，換到同一橫排或同一直行。']},
+  sound:{name:'同音消消', badge:'音', head:'本局讀音',
+    d:'注音和聲調都一樣的三個字連成一線就消。',
+    ex:'<span class="mini">竟</span><span class="mini">境</span><span class="mini">鏡</span><span class="arrow">→</span>都念ㄐㄧㄥˋ',
+    intro:['音','讀音一樣（聲調也要一樣）的三個字排成一線就消。不會念可以按「顯示注音」。']},
+  same:{name:'同字消消', badge:'字', head:'本局的字',
+    d:'一樣的字連成三個就消，消掉時看注音和詞語。每局都是長得很像的字。',
+    ex:'<span class="mini" data-c="3">晴</span><span class="mini" data-c="3">晴</span><span class="mini" data-c="3">晴</span><span class="arrow">→</span>晴天的晴',
+    intro:['字','一樣的字連成三個就消。這局的字長得很像，消掉時看下面的注音和詞語。']},
+  word:{name:'組詞消消', badge:'詞', head:'本局詞語',
+    d:'兩個字相鄰能組成詞語就消，由左到右或由上到下讀。',
+    ex:'<span class="mini">學</span><span class="mini">生</span><span class="arrow">→</span>學生',
+    intro:['詞','把兩個字換到相鄰位置組成詞語。橫的由左到右讀，直的由上到下讀。']}
+};
+
+/* ===== 工具 ===== */
+const $ = s => document.querySelector(s);
+const boardEl = $('#board');
+const reduced = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+const T = {swap:reduced ? 40 : 170, pop:reduced ? 40 : 230, fall:reduced ? 60 : 300};
+const wait = ms => new Promise(res => setTimeout(res, ms));
+const store = {
+  get(k, d){ try{ const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+};
+let best = store.get('hzm-best', {}) || {};
+let soundOn = store.get('hzm-sound', true) !== false;
+let zyOn = store.get('hzm-zy', false) === true;
+function starHTML(n){ let h = ''; for(let i = 0; i < 3; i++) h += '<i class="' + (i < n ? 'on' : '') + '">★</i>'; return h; }
+function hl(w, t){ const i = w.indexOf(t); return i < 0 ? w : w.slice(0, i) + '<b>' + t + '</b>' + w.slice(i + 1); }
+function uniq(a){ return Array.from(new Set(a)); }
+
+let AC = null;
+function beep(ok, combo){
+  if(!soundOn) return;
+  try{
+    AC = AC || new (window.AudioContext || window.webkitAudioContext)();
+    const t0 = AC.currentTime, base = ok ? 520 + Math.min(combo || 1, 5) * 70 : 230;
+    const notes = ok ? [base, base * 1.26] : [base, base * 0.8];
+    notes.forEach((f, i) => {
+      const o = AC.createOscillator(), gn = AC.createGain(), st = t0 + i * 0.08;
+      o.type = ok ? 'triangle' : 'square'; o.frequency.value = f;
+      gn.gain.setValueAtTime(0.0001, st);
+      gn.gain.exponentialRampToValueAtTime(ok ? 0.15 : 0.04, st + 0.01);
+      gn.gain.exponentialRampToValueAtTime(0.0001, st + 0.12);
+      o.connect(gn); gn.connect(AC.destination); o.start(st); o.stop(st + 0.14);
+    });
+  }catch(e){}
+}
+
+/* ===== 首頁 ===== */
+function show(id){ ['home','play','result'].forEach(s => { $('#' + s).hidden = s !== id; }); window.scrollTo(0, 0); }
+function renderHome(){
+  const grid = $('#modegrid'); grid.innerHTML = '';
+  Object.keys(MODE).forEach(k => {
+    const M = MODE[k];
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'mode';
+    b.innerHTML = '<span class="top"><span class="badge" aria-hidden="true">' + M.badge + '</span><span class="nm">' + M.name + '</span>' +
+      '<span class="stars" aria-label="最佳 ' + (best[k] || 0) + ' 顆星">' + starHTML(best[k] || 0) + '</span></span>' +
+      '<p class="d">' + M.d + '</p><span class="ex">' + M.ex + '</span>';
+    b.addEventListener('click', () => startGame(k));
+    grid.appendChild(b);
+  });
+  $('#soundBtn').textContent = '音效：' + (soundOn ? '開' : '關');
+  show('home');
+}
+function renderBank(){
+  let h = '<h3>偏旁消消（' + RADICALS.length + ' 種偏旁，每局抽 5 種）</h3>';
+  RADICALS.forEach(r => { h += '<p><b>' + (r[0] ? r[0] + ' ' : '') + r[1] + '</b>：<span class="kai">' + Array.from(r[2]).join(' ') + '</span></p>'; });
+  h += '<p class="note">只收「偏旁在左邊、一眼看得出來」的字。</p>';
+  h += '<h3>同音消消（' + SOUNDS.length + ' 組，每局抽 5 組）</h3>';
+  SOUNDS.forEach(s => { h += '<p><b>' + s[0] + '</b>：' + parseSound(s).map(x => '<span class="kai">' + x.t + '</span>（' + x.w + '）').join(' ') + '</p>'; });
+  h += '<p class="note">避開破音字，以及臺灣與大陸讀音不同的字。</p>';
+  h += '<h3>同字消消（' + SIMILAR.length + ' 組形近字，每局抽 1 組中的 5 個字）</h3>';
+  SIMILAR.forEach(s => { h += '<p>' + parseSimilar(s).map(x => '<span class="kai">' + x.t + '</span> ' + x.z + '（' + x.w + '）').join('、') + '</p>'; });
+  h += '<h3>組詞消消（' + WORD_SETS.length + ' 個主題，每局 1 個）</h3>';
+  WORD_SETS.forEach(s => { h += '<p><b>' + s[0] + '</b>：<span class="kai">' + s[1] + '</span></p>'; });
+  $('#bankBody').innerHTML = h;
+}
+
+/* ===== 遊戲狀態 ===== */
+let S = null, busy = false, sel = null, drag = null, cur = {r:3, c:3};
+let score = 0, moves = MOVES, learned = new Map(), found = [], hintT = 0, idleT = 0, gen = 0;
+const EL = new Map();
+
+function startGame(mode){
+  gen++;
+  S = makeState(mode); fillBoard(S);
+  score = 0; moves = MOVES; learned = new Map(); found = []; sel = null; drag = null; busy = false;
+  boardEl.querySelectorAll('.tile,.pop').forEach(x => x.remove()); EL.clear();
+  $('#pTitle').textContent = MODE[mode].name;
+  const isSound = mode === 'sound';
+  $('#zyBtn').hidden = !isSound;
+  $('#tools').style.setProperty('--n', isSound ? 3 : 2);
+  boardEl.classList.toggle('zy-on', isSound && zyOn);
+  $('#zyBtn').setAttribute('aria-pressed', String(isSound && zyOn));
+  renderChips(); introCard(); setMsg(''); updateHUD();
+  show('play');
+  dropIn(gen);
+}
+async function dropIn(g0){
+  busy = true;
+  const sp = [];
+  for(let r = 0; r < ROWS; r++) for(let c = 0; c < COLS; c++) sp.push({tile:S.g[r][c], r, c, from:r - ROWS - 1});
+  spawn(sp); setDur(T.fall + 160); layout();
+  await wait(T.fall + 180);
+  if(g0 === gen){ busy = false; poke(); }
+}
+
+/* ===== 盤面繪製 ===== */
+function tileEl(t){
+  let el = EL.get(t.id); if(el) return el;
+  el = document.createElement('div'); el.className = 'tile';
+  const face = document.createElement('div'); face.className = 'face';
+  if(t.ci) face.dataset.c = t.ci;
+  const ch = document.createElement('span'); ch.className = 'ch'; ch.textContent = t.t; face.appendChild(ch);
+  if(t.z && S.mode === 'sound'){ const z = document.createElement('small'); z.className = 'zy'; z.textContent = t.z; face.appendChild(z); }
+  el.appendChild(face); boardEl.appendChild(el); EL.set(t.id, el);
+  return el;
+}
+function pos(el, r, c){ el.style.transform = 'translate(' + (c * 100) + '%,' + (r * 100) + '%)'; }
+function setDur(ms){ boardEl.style.setProperty('--t-move', ms + 'ms'); }
+function layout(){
+  for(let r = 0; r < ROWS; r++) for(let c = 0; c < COLS; c++){ const t = S.g[r][c]; if(t) pos(tileEl(t), r, c); }
+  if(boardEl.classList.contains('kbd')) drawCur();
+}
+function spawn(list){
+  list.forEach(s => { const el = tileEl(s.tile); el.style.transition = 'none'; pos(el, s.from, s.c); });
+  void boardEl.offsetWidth;
+  list.forEach(s => { EL.get(s.tile.id).style.transition = ''; });
+}
+
+/* ===== 輸入 ===== */
+const inB = p => p.r >= 0 && p.r < ROWS && p.c >= 0 && p.c < COLS;
+function cellAt(e){
+  const rc = boardEl.getBoundingClientRect();
+  const c = Math.floor((e.clientX - rc.left) / rc.width * COLS), r = Math.floor((e.clientY - rc.top) / rc.height * ROWS);
+  return inB({r, c}) ? {r, c} : null;
+}
+boardEl.addEventListener('pointerdown', e => {
+  if(busy || !S || moves <= 0) return;
+  const cell = cellAt(e); if(!cell) return;
+  e.preventDefault();
+  drag = {r:cell.r, c:cell.c, x:e.clientX, y:e.clientY, done:false, id:e.pointerId};
+  try{ boardEl.setPointerCapture(e.pointerId); }catch(_){}
+  boardEl.classList.remove('kbd'); poke();
+});
+boardEl.addEventListener('pointermove', e => {
+  if(!drag || drag.done || e.pointerId !== drag.id) return;
+  const dx = e.clientX - drag.x, dy = e.clientY - drag.y, th = Math.max(12, boardEl.clientWidth / COLS * 0.3);
+  if(Math.abs(dx) < th && Math.abs(dy) < th) return;
+  drag.done = true;
+  const to = Math.abs(dx) > Math.abs(dy) ? {r:drag.r, c:drag.c + (dx > 0 ? 1 : -1)} : {r:drag.r + (dy > 0 ? 1 : -1), c:drag.c};
+  setSel(null);
+  if(inB(to)) trySwap({r:drag.r, c:drag.c}, to);
+});
+function endDrag(e){
+  if(!drag || e.pointerId !== drag.id) return;
+  const d = drag; drag = null;
+  if(!d.done && e.type === 'pointerup') tap({r:d.r, c:d.c});
+}
+boardEl.addEventListener('pointerup', endDrag);
+boardEl.addEventListener('pointercancel', endDrag);
+boardEl.addEventListener('keydown', e => {
+  if(!S) return;
+  const k = e.key;
+  if(k === 'ArrowUp') cur.r = Math.max(0, cur.r - 1);
+  else if(k === 'ArrowDown') cur.r = Math.min(ROWS - 1, cur.r + 1);
+  else if(k === 'ArrowLeft') cur.c = Math.max(0, cur.c - 1);
+  else if(k === 'ArrowRight') cur.c = Math.min(COLS - 1, cur.c + 1);
+  else if(k === 'Enter' || k === ' '){ e.preventDefault(); boardEl.classList.add('kbd'); drawCur(); tap({r:cur.r, c:cur.c}); return; }
+  else if(k === 'Escape'){ setSel(null); return; }
+  else return;
+  e.preventDefault(); boardEl.classList.add('kbd'); drawCur(); poke();
+});
+function drawCur(){
+  boardEl.querySelectorAll('.tile.cur').forEach(x => x.classList.remove('cur'));
+  const t = S && S.g[cur.r][cur.c]; const el = t && EL.get(t.id); if(el) el.classList.add('cur');
+}
+function tap(cell){
+  if(busy || moves <= 0) return;
+  if(sel){
+    if(sel.r === cell.r && sel.c === cell.c){ setSel(null); return; }
+    if(Math.abs(sel.r - cell.r) + Math.abs(sel.c - cell.c) === 1){ const a = sel; setSel(null); trySwap(a, cell); return; }
+  }
+  setSel(cell);
+}
+function setSel(cell){
+  boardEl.querySelectorAll('.tile.sel').forEach(x => x.classList.remove('sel'));
+  sel = cell;
+  if(cell){ const el = EL.get(S.g[cell.r][cell.c].id); if(el) el.classList.add('sel'); }
+}
+
+/* ===== 交換與消除 ===== */
+async function trySwap(a, b){
+  if(busy || moves <= 0 || !inB(a) || !inB(b)) return;
+  const g0 = gen;
+  busy = true; clearHint(); setMsg('');
+  swapG(S.g, a.r, a.c, b.r, b.c); setDur(T.swap); layout();
+  await wait(T.swap + 20); if(g0 !== gen) return;
+  let m = findMatches(S);
+  if(!m.hits.length){
+    swapG(S.g, a.r, a.c, b.r, b.c); layout(); beep(false);
+    setMsg(S.mode === 'word' ? '這樣排不成詞語，換回來了' : '這樣不能消，換回來了', 'warn');
+    await wait(T.swap + 20); if(g0 !== gen) return;
+    busy = false; poke(); return;
+  }
+  moves--; updateHUD();
+  let combo = 0;
+  while(m.hits.length){
+    combo++;
+    await resolve(m, combo); if(g0 !== gen) return;
+    m = findMatches(S);
+  }
+  if(moves <= 0){ busy = false; setTimeout(() => { if(g0 === gen) finish(); }, 500); return; }
+  if(!findMoves(S, 1).length){ setMsg('沒有可以消的組合了，重新洗牌', 'warn'); await reshuffle(g0); if(g0 !== gen) return; }
+  busy = false; poke();
+}
+async function resolve(m, combo){
+  const pts = scoreOf(S, m, combo);
+  score += pts; beep(true, combo);
+  record(m); showCard(m, combo); popScore(m, pts); updateHUD();
+  const dying = [];
+  m.cells.forEach(i => {
+    const r = Math.floor(i / COLS), c = i % COLS, t = S.g[r][c];
+    const el = EL.get(t.id); if(el) el.classList.add('gone');
+    dying.push(t.id); S.g[r][c] = null;
+  });
+  await wait(T.pop);
+  dying.forEach(id => { const el = EL.get(id); if(el) el.remove(); EL.delete(id); });
+  const sp = collapse(S);
+  spawn(sp); setDur(T.fall); layout();
+  await wait(T.fall + 30);
+}
+async function reshuffle(g0){
+  EL.forEach(el => el.classList.add('gone'));
+  await wait(T.pop + 60); if(g0 !== gen) return;
+  boardEl.querySelectorAll('.tile').forEach(x => x.remove()); EL.clear();
+  fillBoard(S);
+  const sp = [];
+  for(let r = 0; r < ROWS; r++) for(let c = 0; c < COLS; c++) sp.push({tile:S.g[r][c], r, c, from:r - ROWS - 1});
+  spawn(sp); setDur(T.fall + 160); layout();
+  await wait(T.fall + 180);
+}
+function popScore(m, pts){
+  let sr = 0, sc = 0, n = 0;
+  m.cells.forEach(i => { sr += Math.floor(i / COLS); sc += i % COLS; n++; });
+  const el = document.createElement('div'); el.className = 'pop'; el.textContent = '+' + pts;
+  el.style.left = ((sc / n + 0.5) / COLS * 100) + '%'; el.style.top = ((sr / n + 0.5) / ROWS * 100) + '%';
+  boardEl.appendChild(el); setTimeout(() => el.remove(), 850);
+}
+
+/* ===== 學習紀錄與學習卡 ===== */
+function typeOf(k){ return S.types.find(t => t.k === k); }
+function record(m){
+  m.hits.forEach(h => {
+    const tiles = h.cells.map(([r, c]) => S.g[r][c]);
+    if(S.mode === 'word'){ if(!found.includes(h.w)){ found.push(h.w); markWord(h.w); } return; }
+    const k = tiles[0].k; let e = learned.get(k);
+    if(!e){ e = {k, items:new Map(), n:0}; learned.set(k, e); }
+    e.n++; tiles.forEach(t => e.items.set(t.t, t.w || ''));
+  });
+}
+function bigBoxes(chars){ return chars.map(ch => '<span class="tz">' + ch + '</span>').join(''); }
+function introCard(){
+  const M = MODE[S.mode];
+  $('#cBig').innerHTML = bigBoxes([M.intro[0]]);
+  $('#cTitle').textContent = M.name;
+  $('#cBody').textContent = M.intro[1];
+  $('#cCombo').hidden = true;
+}
+function showCard(m, combo){
+  const h = m.hits[0], tiles = h.cells.map(([r, c]) => S.g[r][c]);
+  let big, title, body;
+  if(S.mode === 'radical'){
+    const ty = typeOf(h.k);
+    big = [ty.glyph || tiles[0].t];
+    title = ty.name + (ty.glyph ? '「' + ty.glyph + '」' : '');
+    body = uniq(tiles.map(t => t.t)).map(x => '<b>' + x + '</b>').join('・') + '　左邊都是' + ty.name;
+  }else if(S.mode === 'sound'){
+    big = [tiles[0].t];
+    title = h.k + '　同音字';
+    const seen = new Map(); tiles.forEach(t => seen.set(t.t, t.w));
+    body = Array.from(seen).map(([t, w]) => '<span class="kai">' + hl(w, t) + '</span>').join('・');
+  }else if(S.mode === 'same'){
+    const t = tiles[0];
+    big = [t.t];
+    title = t.t + '　' + t.z;
+    body = '<span class="kai">' + hl(t.w, t.t) + '</span>　形近字：<span class="kai">' + S.set.filter(x => x.t !== t.t).map(x => x.t).join(' ') + '</span>';
+  }else{
+    big = Array.from(h.w);
+    title = '組成「' + h.w + '」';
+    body = '本局找到 ' + found.length + ' / ' + S.words.length + ' 個詞語';
+  }
+  if(m.hits.length > 1) body += '<br>這一步共消了 ' + m.hits.length + ' 組';
+  $('#cBig').innerHTML = bigBoxes(big);
+  $('#cTitle').textContent = title;
+  $('#cBody').innerHTML = body;
+  const cb = $('#cCombo'); cb.hidden = combo < 2; cb.textContent = '連消 ×' + combo;
+}
+function renderChips(){
+  const box = $('#chips'), M = MODE[S.mode];
+  let h = '<span class="lbl">' + M.head + (S.mode === 'word' ? '（' + S.theme + '・<span id="wCount">0</span>/' + S.words.length + '）' : '') + '</span>';
+  if(S.mode === 'radical') h += S.types.map(t => '<span class="chip">' + (t.glyph ? '<span class="g">' + t.glyph + '</span>' : '') + t.name + '</span>').join('');
+  else if(S.mode === 'sound') h += S.types.map(t => '<span class="chip zy">' + t.z + '</span>').join('');
+  else if(S.mode === 'same') h += S.types.map(t => '<span class="chip"><span class="sw" style="background:var(--c' + t.ci + ')">' + t.k + '</span>' + t.items[0].z + '</span>').join('');
+  else h += S.words.map(w => '<span class="chip word" data-w="' + w + '">' + w + '</span>').join('');
+  box.innerHTML = h;
+}
+function markWord(w){
+  const el = $('#chips').querySelector('[data-w="' + w + '"]'); if(el) el.classList.add('got');
+  const n = $('#wCount'); if(n) n.textContent = found.length;
+}
+
+/* ===== HUD、提示、訊息 ===== */
+function updateHUD(){
+  $('#pMoves').textContent = moves; $('#pScore').textContent = score;
+  $('#movesStat').classList.toggle('low', moves <= 5);
+  const th = STARS[S.mode], top = th[2];
+  $('#meterFill').style.width = Math.min(score / top, 1) * 100 + '%';
+  [1, 2, 3].forEach(i => { const mk = $('#mk' + i); mk.style.left = (th[i - 1] / top * 100) + '%'; mk.classList.toggle('on', score >= th[i - 1]); });
+}
+function setMsg(t, cls){ const m = $('#msg'); m.textContent = t; m.className = 'msg' + (cls ? ' ' + cls : ''); }
+function clearHint(){ clearTimeout(hintT); boardEl.querySelectorAll('.tile.hint').forEach(x => x.classList.remove('hint')); }
+function hint(auto){
+  if(!S || busy || moves <= 0) return;
+  clearHint();
+  const mv = findMoves(S); if(!mv.length) return;
+  const [a, b] = mv[rint(mv.length)];
+  [a, b].forEach(p => { const el = EL.get(S.g[p.r][p.c].id); if(el) el.classList.add('hint'); });
+  if(!auto) setMsg('試試看交換閃動的兩個字');
+  hintT = setTimeout(clearHint, 2800);
+}
+function poke(){
+  clearTimeout(idleT);
+  idleT = setTimeout(() => { if(!$('#play').hidden) hint(true); }, 15000);
+}
+
+/* ===== 成績 ===== */
+function finish(){
+  clearTimeout(idleT); clearHint();
+  const th = STARS[S.mode], st = score >= th[2] ? 3 : score >= th[1] ? 2 : score >= th[0] ? 1 : 0;
+  if(st > (best[S.mode] || 0)){ best[S.mode] = st; store.set('hzm-best', best); }
+  $('#rTitle').textContent = MODE[S.mode].name + '・本局結束';
+  $('#rScore').textContent = score;
+  $('#rStars').innerHTML = starHTML(st);
+  $('#rStars').setAttribute('aria-label', st + ' 顆星');
+  const need = st < 3 ? '再拿 ' + (th[st] - score) + ' 分就有 ' + (st + 1) + ' 顆星。' : '拿到 3 顆星。';
+  $('#rLine').textContent = need;
+  const list = $('#rList'); list.innerHTML = '';
+  const add = (html, miss) => { const li = document.createElement('li'); if(miss) li.className = 'miss'; li.innerHTML = html; list.appendChild(li); };
+  if(S.mode === 'radical'){
+    learned.forEach(e => { const ty = typeOf(e.k); add('<b>' + (ty.glyph ? ty.glyph + ' ' : '') + ty.name + '</b>：<span class="kai">' + Array.from(e.items.keys()).join('、') + '</span>'); });
+  }else if(S.mode === 'sound'){
+    learned.forEach(e => { add('<b>' + e.k + '</b>：' + Array.from(e.items).map(([t, w]) => '<span class="kai">' + hl(w, t) + '</span>').join('、')); });
+  }else if(S.mode === 'same'){
+    S.types.forEach(ty => { const it = ty.items[0], e = learned.get(ty.k);
+      add('<b class="k">' + it.t + '</b>　' + it.z + '　<span class="kai">' + hl(it.w, it.t) + '</span>' + (e ? '　（消了 ' + e.n + ' 次）' : '　（這局沒消到）'), !e); });
+  }else{
+    found.forEach(w => add('<span class="kai">' + w + '</span>'));
+    const miss = S.words.filter(w => !found.includes(w));
+    if(miss.length) add('還沒找到：<span class="kai">' + miss.join('、') + '</span>', true);
+  }
+  $('#rListTitle').textContent = S.mode === 'word' ? '找到的詞語（' + found.length + ' / ' + S.words.length + '）' : S.mode === 'same' ? '這局的形近字' : '這局學到的';
+  if(!list.children.length) add('這局沒有消到任何組合。', true);
+  show('result');
+}
+
+/* ===== 按鈕 ===== */
+$('#hintBtn').addEventListener('click', () => { hint(false); poke(); });
+$('#zyBtn').addEventListener('click', () => {
+  zyOn = !zyOn; store.set('hzm-zy', zyOn);
+  boardEl.classList.toggle('zy-on', zyOn); $('#zyBtn').setAttribute('aria-pressed', String(zyOn));
+});
+$('#newBtn').addEventListener('click', () => startGame(S.mode));
+$('#backBtn').addEventListener('click', () => { gen++; clearTimeout(idleT); clearHint(); renderHome(); });
+$('#againBtn').addEventListener('click', () => startGame(S.mode));
+$('#homeBtn').addEventListener('click', renderHome);
+$('#soundBtn').addEventListener('click', () => { soundOn = !soundOn; store.set('hzm-sound', soundOn); $('#soundBtn').textContent = '音效：' + (soundOn ? '開' : '關'); });
+
+renderBank();
+renderHome();
+})();
+</script>
+</body>
+</html>
