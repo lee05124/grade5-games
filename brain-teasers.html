@@ -1,0 +1,653 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>腦筋急轉彎擂台</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&family=Huninn&family=LXGW+WenKai+TC:wght@700&family=Noto+Sans+TC:wght@500&display=swap">
+<style>
+/* Layout: same graph-paper 練習簿 column as 湊湊樂. Home = mode switch + settings; play = question card, options or host controls; category colors: 字謎 red, 邏輯 blue, 數學 green. */
+:root{
+  --paper:#F3F7FC; --grid:#DCE6F2; --surface:#FFFFFF; --line:#CBD8E8;
+  --ink:#1D2942; --muted:#5A6A86;
+  --tile:#FFD45E; --tile-edge:#D9A21E; --tile-ink:#3B2A00;
+  --op:#2E66D1; --op-soft:#E3ECFB;
+  --red:#D23B3B; --red-soft:#FBE4E4; --good:#1F8A55; --good-soft:#DDF2E6;
+  --gold:#E9A817;
+  --f-display:"Huninn","Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
+  --f-num:"Baloo 2","Arial Rounded MT Bold","Helvetica Neue",Arial,sans-serif;
+  --f-kai:"LXGW WenKai TC","BiauKai","DFKai-SB","Kaiti TC","STKaiti",serif;
+  --r:14px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#1C2B25; --grid:#263A32; --surface:#22352D; --line:#34493F;
+    --ink:#EEF2E8; --muted:#A8B8AC;
+    --tile:#F3CB52; --tile-edge:#AD8417; --tile-ink:#2A1F00;
+    --op:#8DB6FF; --op-soft:#2A4250;
+    --red:#FF7D7D; --red-soft:#4A2D2D; --good:#6FD6A0; --good-soft:#1E3B2E;
+    --gold:#F1BF3D;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#1C2B25; --grid:#263A32; --surface:#22352D; --line:#34493F;
+  --ink:#EEF2E8; --muted:#A8B8AC;
+  --tile:#F3CB52; --tile-edge:#AD8417; --tile-ink:#2A1F00;
+  --op:#8DB6FF; --op-soft:#2A4250;
+  --red:#FF7D7D; --red-soft:#4A2D2D; --good:#6FD6A0; --good-soft:#1E3B2E;
+  --gold:#F1BF3D;
+  color-scheme:dark;
+}
+[hidden]{display:none!important}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;
+  background-color:var(--paper);
+  background-image:linear-gradient(var(--grid) 1px, transparent 1px),linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size:24px 24px;
+  color:var(--ink); font-family:var(--f-display); font-size:16px; line-height:1.6;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));
+  padding-right:max(16px, env(safe-area-inset-right, 0px));
+  padding-block:20px 40px;
+}
+.wrap{max-width:560px;margin:0 auto}
+section.screen{display:flex;flex-direction:column;gap:14px}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+button:focus-visible,a:focus-visible,input:focus-visible{outline:3px solid var(--op);outline-offset:2px}
+h1{margin:0;font-size:1.9rem;font-weight:400;letter-spacing:.04em;line-height:1.2;text-wrap:balance}
+h1 small{display:block;font-size:.85rem;color:var(--muted);letter-spacing:.02em;margin-top:4px}
+h2{margin:0;font-size:1rem;font-weight:400;color:var(--muted);letter-spacing:.06em}
+
+/* ---------- home ---------- */
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:6px;background:var(--surface);border:1.5px solid var(--line);border-radius:16px;padding:5px}
+.seg button{appearance:none;border:0;background:none;border-radius:11px;padding:10px 6px;font-size:1.08rem;display:flex;flex-direction:column;align-items:center;line-height:1.3}
+.seg button small{font-size:.8rem;color:var(--muted)}
+.seg button[aria-selected="true"]{background:var(--tile);color:var(--tile-ink);box-shadow:0 3px 0 var(--tile-edge)}
+.seg button[aria-selected="true"] small{color:var(--tile-ink);opacity:.8}
+.panel{background:var(--surface);border:1.5px solid var(--line);border-radius:var(--r);padding:14px 16px;display:flex;flex-direction:column;gap:12px}
+.panel p{margin:0}
+.desc{font-size:.95rem;color:var(--muted)}
+.field{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.fl{font-size:.9rem;color:var(--muted);width:2.6em;flex:none}
+.pills{display:flex;gap:6px;flex-wrap:wrap;flex:1;min-width:0}
+.pill{appearance:none;border:1.5px solid var(--line);background:var(--surface);border-radius:999px;padding:3px 13px;font-size:.95rem}
+.pill:hover{border-color:var(--op)}
+.pill[aria-pressed="true"]{background:var(--op);border-color:var(--op);color:var(--surface)}
+.names{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.names label{display:flex;flex-direction:column;gap:2px;font-size:.82rem;color:var(--muted);min-width:0}
+.names input{width:100%;min-width:0;border:1.5px solid var(--line);background:var(--paper);border-radius:10px;padding:7px 10px;font-size:1rem;color:var(--ink)}
+.note{font-size:.88rem;color:var(--muted);text-align:center}
+details.panel{display:block}
+details.panel summary{cursor:pointer;color:var(--muted);letter-spacing:.04em}
+.bank h3{margin:16px 0 6px;font-size:1rem;font-weight:400}
+.bank ol{margin:0;padding-left:1.6em;display:flex;flex-direction:column;gap:8px;font-size:.92rem;line-height:1.6}
+.bank .ans{color:var(--good)}
+.bank .lvs{color:var(--gold);font-size:.85rem;margin-right:4px}
+.foot{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.chip-btn{appearance:none;border:1.5px solid var(--line);background:var(--surface);border-radius:999px;padding:4px 14px;font-size:.88rem;color:var(--ink);text-decoration:none;display:inline-block}
+.chip-btn:hover{border-color:var(--op)}
+
+/* ---------- shared play ---------- */
+.btn{appearance:none;border:0;border-radius:12px;padding:12px 16px;font-size:1.08rem;background:var(--op);color:var(--surface);width:100%}
+.btn:hover{filter:brightness(1.06)}
+.btn.ghost{background:var(--surface);color:var(--ink);border:1.5px solid var(--line)}
+.btn.warm{background:var(--tile);color:var(--tile-ink);box-shadow:0 3px 0 var(--tile-edge)}
+.hud{display:flex;align-items:center;gap:6px}
+.back{appearance:none;border:0;background:none;color:var(--op);padding:4px 0;font-size:.95rem;white-space:nowrap;flex:none}
+.hud .ttl{font-size:1.1rem;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stat{flex:none;background:var(--surface);border:1.5px solid var(--line);border-radius:999px;padding:3px 10px;font-size:.85rem;white-space:nowrap}
+.stat b{font-family:var(--f-num);font-size:1.15rem;font-weight:800;font-variant-numeric:tabular-nums}
+.progress{height:8px;background:var(--surface);border:1.5px solid var(--line);border-radius:999px;overflow:hidden}
+.progress i{display:block;height:100%;width:0;background:var(--good);transition:width .35s ease}
+.qcard{background:var(--surface);border:1.5px solid var(--line);border-radius:18px;padding:16px 18px 20px;display:flex;flex-direction:column;gap:10px}
+.qmeta{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.tag{border-radius:999px;padding:1px 10px;font-size:.85rem}
+.tag.z{background:var(--red-soft);color:var(--red)}
+.tag.l{background:var(--op-soft);color:var(--op)}
+.tag.m{background:var(--good-soft);color:var(--good)}
+.lv{color:var(--gold);letter-spacing:1px}
+.pts{margin-left:auto;font-size:.85rem;color:var(--muted)}
+.qtext{margin:0;font-size:1.3rem;line-height:1.65;text-wrap:pretty}
+.qcard.big .qtext{font-size:1.5rem}
+.opts{display:grid;gap:10px}
+.opts.two{grid-template-columns:1fr 1fr}
+.opt{appearance:none;min-height:54px;border:2px solid var(--line);background:var(--surface);border-radius:12px;padding:10px 14px;font-size:1.05rem;line-height:1.45;text-align:left;display:flex;align-items:center;gap:10px;transition:border-color .15s,background .15s}
+.opt:not(:disabled):hover{border-color:var(--op)}
+.opt .k{flex:none;width:22px;height:22px;border:1.5px solid var(--line);border-radius:6px;display:grid;place-items:center;font-size:.75rem;color:var(--muted);font-family:var(--f-num)}
+.opt .t{min-width:0}
+.opt.char .t{font-family:var(--f-kai);font-size:1.8rem;line-height:1}
+.opt:disabled{cursor:default}
+.opt.ok{border-color:var(--good);background:var(--good-soft)}
+.opt.bad{border-color:var(--red);background:var(--red-soft)}
+.reveal{background:var(--surface);border:1.5px solid var(--line);border-radius:var(--r);padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+.reveal p{margin:0}
+.rv-head{display:flex;align-items:center;gap:12px}
+.tz{width:3.8rem;height:3.8rem;flex:none;display:grid;place-items:center;border:2px solid var(--red);font-family:var(--f-kai);font-weight:700;font-size:2.6rem;line-height:1;color:var(--red);
+  background:linear-gradient(var(--red-soft),var(--red-soft)) center/1.5px 100% no-repeat,linear-gradient(var(--red-soft),var(--red-soft)) center/100% 1.5px no-repeat,var(--surface)}
+.verdict{font-size:1.1rem;line-height:1.45}
+.verdict.ok{color:var(--good)}
+.verdict.bad{color:var(--red)}
+.verdict .ans{color:var(--ink)}
+.exp{color:var(--muted);line-height:1.7}
+
+/* ---------- family ---------- */
+.scores{display:grid;grid-template-columns:repeat(var(--n,3),minmax(0,1fr));gap:6px}
+.sc{background:var(--surface);border:1.5px solid var(--line);border-radius:12px;padding:6px 8px;text-align:center;min-width:0}
+.sc .nm{display:block;font-size:.88rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sc b{font-family:var(--f-num);font-weight:800;font-size:1.5rem;line-height:1.1;font-variant-numeric:tabular-nums}
+.sc.lead{border-color:var(--gold);box-shadow:0 0 0 2px var(--gold) inset}
+.sc.bump{animation:bump .5s ease}
+@keyframes bump{40%{transform:scale(1.08)}}
+.timer{position:relative;height:26px;background:var(--surface);border:1.5px solid var(--line);border-radius:999px;overflow:hidden}
+.timer i{position:absolute;inset:0 auto 0 0;width:100%;background:var(--op-soft)}
+.timer.low i{background:var(--red-soft)}
+.timer span{position:relative;display:block;text-align:center;font-size:.88rem;line-height:23px;font-variant-numeric:tabular-nums}
+.timer.up span{color:var(--red)}
+.who{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.who button{appearance:none;border:2px solid var(--line);background:var(--surface);border-radius:12px;padding:10px 6px;font-size:1rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.who button:hover{border-color:var(--good)}
+.who .none{grid-column:1 / -1;color:var(--muted)}
+
+/* ---------- result ---------- */
+.rhead{text-align:center;display:flex;flex-direction:column;align-items:center;gap:4px}
+.rhead .big{font-family:var(--f-num);font-weight:800;font-size:3.6rem;line-height:1;color:var(--red);font-variant-numeric:tabular-nums}
+.rhead .big small{font-family:var(--f-display);font-weight:400;font-size:1.1rem;color:var(--muted);margin-left:4px}
+.rhead p{margin:0}
+.rank{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.rank li{display:flex;align-items:center;gap:10px;background:var(--paper);border-radius:10px;padding:8px 12px}
+.rank .pos{font-family:var(--f-num);font-weight:800;width:1.6em;text-align:center;color:var(--muted)}
+.rank li:first-child .pos{color:var(--gold)}
+.rank .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rank b{font-family:var(--f-num);font-weight:800;font-size:1.2rem}
+.wlist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.wlist li{border-left:4px solid var(--red);padding:2px 0 2px 10px;line-height:1.6;font-size:.95rem}
+.wlist li b{color:var(--good);font-weight:400}
+
+@media (max-width:380px){ .opts.two{grid-template-columns:1fr} .qtext{font-size:1.2rem} }
+@media (prefers-reduced-motion: reduce){ *{animation:none!important;transition-duration:.01ms!important} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ========== 首頁 ========== -->
+  <section class="screen" id="home">
+    <header><h1>腦筋急轉彎擂台<small>國字字謎、邏輯陷阱、數學陷阱，共 <span id="total">80</span> 題</small></h1></header>
+    <div class="seg" role="tablist" aria-label="玩法">
+      <button type="button" role="tab" id="tabSolo" aria-selected="true">自己挑戰<small>選擇題・馬上看解說</small></button>
+      <button type="button" role="tab" id="tabFam" aria-selected="false">全家搶答<small>一人主持・大家用說的</small></button>
+    </div>
+
+    <section class="panel" id="soloSet">
+      <p class="desc">一次 10 題選擇題。選項裡藏著「最容易上當」的答案，先想清楚再按。</p>
+      <div class="field"><span class="fl">題型</span><div class="pills" id="pSoloType"></div></div>
+      <div class="field"><span class="fl">難度</span><div class="pills" id="pSoloLv"></div></div>
+      <button class="btn warm" id="soloStart" type="button">開始挑戰</button>
+      <p class="note" id="soloNote"></p>
+    </section>
+
+    <section class="panel" id="famSet" hidden>
+      <p class="desc">一台手機當主持人，把題目唸出來，大家用說的搶答。主持人按「看答案」，再點誰答對。★ 題 1 分、★★ 題 2 分、★★★ 題 3 分。</p>
+      <div class="field"><span class="fl">人數</span><div class="pills" id="pFamN"></div></div>
+      <div class="names" id="names"></div>
+      <div class="field"><span class="fl">題數</span><div class="pills" id="pFamCount"></div></div>
+      <div class="field"><span class="fl">題型</span><div class="pills" id="pFamType"></div></div>
+      <div class="field"><span class="fl">倒數</span><div class="pills" id="pFamTimer"></div></div>
+      <button class="btn warm" id="famStart" type="button">開始搶答</button>
+    </section>
+
+    <details class="panel bank">
+      <summary>題庫一覽（含答案，給家長核對）</summary>
+      <div id="bankBody"></div>
+    </details>
+    <div class="foot">
+      <a class="chip-btn" href="index.html">← 五年級湊湊樂</a>
+      <button class="chip-btn" id="soundBtn" type="button">音效：開</button>
+    </div>
+  </section>
+
+  <!-- ========== 自己挑戰 ========== -->
+  <section class="screen" id="solo" hidden>
+    <div class="hud">
+      <button class="back" type="button" data-home>← 回首頁</button>
+      <span class="ttl">自己挑戰</span>
+      <span class="stat">第 <b id="sNo">1</b> / <span id="sTot">10</span> 題</span>
+      <span class="stat">答對 <b id="sRight">0</b></span>
+    </div>
+    <div class="progress"><i id="sBar"></i></div>
+    <article class="qcard">
+      <div class="qmeta"><span class="tag" id="sTag"></span><span class="lv" id="sLv"></span></div>
+      <p class="qtext" id="sQ"></p>
+    </article>
+    <div class="opts" id="sOpts"></div>
+    <div class="reveal" id="sRev" hidden>
+      <div class="rv-head"><span class="tz" id="sTz" hidden></span><p class="verdict" id="sVerdict"></p></div>
+      <p class="exp" id="sExp"></p>
+      <button class="btn" id="sNext" type="button">下一題</button>
+    </div>
+  </section>
+
+  <!-- ========== 全家搶答 ========== -->
+  <section class="screen" id="fam" hidden>
+    <div class="hud">
+      <button class="back" type="button" data-home>← 回首頁</button>
+      <span class="ttl">全家搶答</span>
+      <span class="stat">第 <b id="fNo">1</b> / <span id="fTot">10</span> 題</span>
+    </div>
+    <div class="scores" id="fScores"></div>
+    <div class="timer" id="fTimer"><i id="fTimeBar"></i><span id="fTimeTxt"></span></div>
+    <article class="qcard big">
+      <div class="qmeta"><span class="tag" id="fTag"></span><span class="lv" id="fLv"></span><span class="pts" id="fPts"></span></div>
+      <p class="qtext" id="fQ"></p>
+    </article>
+    <button class="btn warm" id="fReveal" type="button">看答案</button>
+    <div class="reveal" id="fRev" hidden>
+      <div class="rv-head"><span class="tz" id="fTz" hidden></span><p class="verdict"><span class="ans" id="fAns"></span></p></div>
+      <p class="exp" id="fExp"></p>
+      <h2>誰答對？</h2>
+      <div class="who" id="fWho"></div>
+    </div>
+  </section>
+
+  <!-- ========== 成績 ========== -->
+  <section class="screen" id="res" hidden>
+    <div class="rhead">
+      <h2 id="rTitle"></h2>
+      <p class="big" id="rBig"></p>
+      <p id="rLine"></p>
+    </div>
+    <section class="panel" id="rPanel">
+      <h2 id="rListTitle"></h2>
+      <ol class="rank" id="rRank" hidden></ol>
+      <ul class="wlist" id="rList"></ul>
+    </section>
+    <button class="btn warm" id="rAgain" type="button">再來一輪</button>
+    <button class="btn ghost" type="button" data-home>回首頁</button>
+  </section>
+</div>
+
+<script>
+(function(){
+"use strict";
+/*DATA-START*/
+// [題型 z=字謎 l=邏輯陷阱 m=數學陷阱, 難度1-3, 題目, 答案, [三個誘答], 解說]
+const RAW = [
+ ['z',1,'日月同輝（打一字）','明',['朋','昌','晶'],'「日」加「月」就是「明」。'],
+ ['z',1,'一人一口（打一字）','合',['囚','古','回'],'「人」、「一」、「口」由上往下疊起來，就是「合」。人被關在口裡面是「囚」，不一樣喔。'],
+ ['z',1,'門裡有張口（打一字）','問',['間','聞','閃'],'「門」裡面一個「口」是「問」。門裡有日是「間」，有耳是「聞」，有人是「閃」。'],
+ ['z',1,'一個人靠著一棵樹（打一字）','休',['林','什','伴'],'「亻」靠著「木」就是「休」，人靠在樹旁休息。'],
+ ['z',1,'山上還有山（打一字）','出',['岳','峰','仙'],'兩個「山」上下疊起來，就是「出」。'],
+ ['z',1,'三個口疊起來（打一字）','品',['器','回','呂'],'上面一個口、下面兩個口，就是「品」。'],
+ ['z',1,'女孩子（打一字）','好',['妙','姿','字'],'「女」加「子」就是「好」。'],
+ ['z',1,'上小下大（打一字）','尖',['奈','太','天'],'上面「小」、下面「大」，就是「尖」。'],
+ ['z',1,'大口套小口（打一字）','回',['呂','品','田'],'大的「口」裡面再套一個小「口」，就是「回」。'],
+ ['z',1,'兩木成林，三木成什麼？（打一字）','森',['林','楚','杉'],'三個「木」合起來是「森」。'],
+ ['z',1,'口字裡面有個十（打一字）','田',['古','由','申'],'「口」裡面一個「十」是「田」。「由」、「申」的直線會穿出口外。'],
+ ['z',2,'一口咬掉牛尾巴（打一字）','告',['舌','牢','吉'],'「牛」去掉下面那段尾巴，下面再加一個「口」，就是「告」。'],
+ ['z',2,'一加一不是二（打一字）','王',['土','干','三'],'「一」加上加號「十」，再加一個「一」，疊起來就是「王」。'],
+ ['z',2,'十張口，一顆心（打一字）','思',['恩','忠','怎'],'「十」和「口」合成「田」，下面一顆「心」，就是「思」。'],
+ ['z',2,'千里相逢（打一字）','重',['野','埋','量'],'「千」和「里」上下合在一起，就是「重」。'],
+ ['z',2,'十個哥哥（打一字）','克',['兄','古','競'],'「十」加上哥哥的「兄」，就是「克」。'],
+ ['z',2,'牛走過獨木橋（打一字）','生',['先','牢','告'],'「牛」下面加一根木頭「一」，就是「生」。'],
+ ['z',2,'九點（打一字）','丸',['旭','究','凡'],'「九」再加一點，就是「丸」。'],
+ ['z',2,'自大一點（打一字）','臭',['息','首','鼻'],'「大」加一點是「犬」，「自」下面一個「犬」就是「臭」。'],
+ ['z',2,'一隻狗，四張口（打一字）','器',['品','哭','囂'],'「犬」就是狗。四個「口」圍著「犬」是「器」；只有兩個口的是「哭」。'],
+ ['z',2,'七十二小時（打一字）','晶',['昌','早','時'],'72 小時是 3 天，三個「日」就是「晶」。'],
+ ['z',2,'人有他也大，天沒他也大（打一字）','一',['二','人','口'],'「人」加「一」是「大」；「天」拿掉「一」也是「大」。'],
+ ['z',2,'二人頂破天（打一字）','夫',['天','失','夭'],'「二」和「人」合起來是「天」，人再往上頂出頭，就是「夫」。'],
+ ['z',2,'一人一張口，口下長隻手（打一字）','拿',['拳','合','掌'],'「人」、「一」、「口」合成「合」，下面再長一隻「手」，就是「拿」。'],
+ ['z',3,'一大二小（打一字）','奈',['尖','太','示'],'上面是「大」，下面是「示」，而「示」可以拆成「二」和「小」。'],
+ ['z',3,'十字對十字，太陽對月亮（打一字）','朝',['晴','朗','期'],'左邊由上到下是「十、日、十」，右邊是「月」，合起來是「朝」。'],
+ ['z',3,'王先生和白先生，一起坐在石頭上（打一字）','碧',['珀','硯','皇'],'「王」、「白」在上，「石」在下，就是「碧」。只有王和白的是「珀」或「皇」。'],
+ ['z',3,'有水能養魚，有土能種菜，有人不是你和我，有馬能跑千里遠（打一字）','也',['包','主','青'],'加水是「池」、加土是「地」、加人是「他」、加馬是「馳」，共同的部分是「也」。'],
+ ['z',3,'上不在上，下不在下，不可在上，且宜在下（打一字）','一',['卜','十','丁'],'「上」的那一橫在下面，「下」的那一橫在上面；「不」的一橫在上，「且」的一橫在下。說的都是「一」。'],
+
+ ['l',1,'一個人在大雨中走路，沒撐傘也沒戴帽子，頭髮卻一點都沒濕。為什麼？','他是光頭',['他走得很快','他的頭髮很短','他一直低著頭'],'沒有頭髮，當然不會濕。'],
+ ['l',1,'小明的媽媽有三個孩子，老大叫一一，老二叫二二，老三叫什麼？','小明',['三三','四四','一二'],'題目第一句就說了，這是「小明的媽媽」，所以老三就是小明。'],
+ ['l',1,'1 公斤的鐵和 1 公斤的棉花，哪一個比較重？','一樣重',['鐵比較重','棉花比較重','要看放在哪裡'],'都是 1 公斤，重量一樣。鐵只是體積比較小。'],
+ ['l',1,'哪一種車沒有輪子？','風車',['火車','腳踏車','消防車'],'風車是靠風轉動葉片的機器，名字裡有「車」，卻沒有輪子。'],
+ ['l',2,'一年之中，有哪幾個月有 28 天？','每個月都有',['只有 2 月','2 月和 4 月','沒有任何一個月'],'每個月至少都有 28 天，所以 12 個月都有第 28 天。'],
+ ['l',2,'賽跑時，你超過了第二名，你現在是第幾名？','第二名',['第一名','第三名','最後一名'],'你取代了原本第二名的位置，第一名還在你前面。'],
+ ['l',2,'農夫有 17 隻羊，除了 9 隻以外全部賣掉了，他還剩幾隻羊？','9 隻',['8 隻','17 隻','26 隻'],'「除了 9 隻以外全部賣掉」，表示留下來的就是那 9 隻。'],
+ ['l',2,'房間的四個角落各坐著一隻貓，每隻貓都看到前面有三隻貓。房間裡一共有幾隻貓？','4 隻',['12 隻','16 隻','8 隻'],'每隻貓看到的「三隻貓」，就是另外三個角落的貓，全部只有 4 隻。'],
+ ['l',2,'一位卡車司機在單行道上逆向前進，警察看到了卻沒有攔他。為什麼？','他是走路，沒有開車',['警察沒看清楚','那天是假日','他開得很慢'],'題目只說他是卡車司機，沒說他正在開車。走路的人不受單行道限制。'],
+ ['l',2,'什麼東西被拿走越多，反而變得越大？','洞',['錢包','氣球','冰塊'],'挖洞時拿走的土越多，洞就越大。'],
+ ['l',2,'什麼東西明明是你的，別人卻用得比你多？','你的名字',['你的鉛筆','你的房間','你的手機'],'別人叫你的時候都在用你的名字，自己反而很少叫自己。'],
+ ['l',2,'有人說：「我可以跳得比我家房子還高。」為什麼他說的是真的？','房子不會跳',['他是跳高選手','他家房子很矮','他用彈簧床'],'房子根本不會跳，所以人隨便跳一下，都比房子「跳得高」。'],
+ ['l',2,'停電了，房間裡有一根蠟燭、一盞油燈和一個瓦斯爐，你只有一根火柴。要先點哪一個？','火柴',['蠟燭','油燈','瓦斯爐'],'不管要點什麼，都得先把火柴點著。'],
+ ['l',2,'什麼東西只會增加，永遠不會減少？','年齡',['溫度','體重','零用錢'],'年齡每過一年就多一歲，不會變少。'],
+ ['l',2,'什麼東西只要一開口說話，就會被打破？','安靜',['玻璃','雞蛋','氣球'],'一開口說話，安靜就沒了，也就是「打破沉默」。'],
+ ['l',2,'公車上原本有 20 人，第一站下車 5 人、上車 3 人，第二站下車 4 人、上車 6 人，第三站下車 2 人。這輛公車停了幾站？','3 站',['2 站','4 站','18 站'],'題目問的是停了幾站，不是車上剩幾人。車上剩 18 人，公車停了 3 站。'],
+ ['l',2,'小明考試拿了全班第一名，也拿了全班最後一名。怎麼可能？','那天班上只有他一個人考試',['他考了兩次','老師算錯了','他交了兩張考卷'],'只有一個人考試時，他同時是第一名，也是最後一名。'],
+ ['l',3,'兩枚硬幣加起來是 15 元，其中一枚不是 10 元。這兩枚硬幣各是多少元？','10 元和 5 元',['5 元和 5 元','1 元和 14 元','根本不可能'],'「其中一枚不是 10 元」說的是那枚 5 元，另一枚還是可以是 10 元。'],
+ ['l',3,'一位醫生有個弟弟，可是這個弟弟說自己沒有哥哥。為什麼？','醫生是姊姊',['弟弟說謊','他們是表兄弟','弟弟忘記了'],'醫生不一定是男生。這位醫生是弟弟的姊姊，所以弟弟沒有哥哥。'],
+ ['l',3,'兩個爸爸和兩個兒子一起去釣魚，每人都釣到一條魚，卻總共只有三條魚。為什麼？','他們是爺爺、爸爸、兒子三個人',['有一條魚跑掉了','有人其實沒釣到','有人把魚放回河裡'],'中間那位爸爸，同時是爺爺的兒子、也是兒子的爸爸。三個人裡就有兩個爸爸、兩個兒子。'],
+ ['l',3,'盒子裡有三顆蘋果，三個人各拿走一顆，盒子裡卻還有一顆。怎麼可能？','最後一個人連盒子一起拿走',['有人拿錯了','蘋果又長出來了','其中一個人沒拿'],'第三個人拿的那顆蘋果還在盒子裡，因為他是連盒子一起拿走的。'],
+ ['l',3,'把一顆生雞蛋往前丟出 10 公尺，蛋卻沒有破。為什麼？','前 10 公尺它都還在空中',['蛋殼特別硬','丟的人力氣很小','那顆蛋冰過'],'蛋要飛完 10 公尺之後才落地，飛在空中的那 10 公尺當然不會破。'],
+ ['l',3,'有兩個時鐘，一個每天慢 1 分鐘，另一個壞掉完全不走。哪一個比較常顯示正確的時間？','壞掉不走的那個',['每天慢 1 分鐘的那個','兩個一樣準','兩個都不會準'],'停掉的鐘每天有兩次剛好對。每天慢 1 分鐘的鐘，要慢滿 12 小時，也就是 720 天後，才會再對一次。'],
+ ['l',3,'小美說：「前天我才 17 歲，明年我就 20 歲了。」這可能嗎？','可能，今天是 1 月 1 日，她生日在 12 月 31 日',['不可能，一年只會長一歲','可能，她明年要過兩次生日','不可能，她一定記錯了'],'今天是 1 月 1 日。前天（12 月 30 日）她 17 歲，昨天滿 18 歲，今年 12 月 31 日滿 19 歲，明年 12 月 31 日滿 20 歲。'],
+ ['l',3,'早上四條腿，中午兩條腿，晚上三條腿，這是什麼？','人',['狗','椅子','青蛙'],'早上、中午、晚上比喻人的一生：嬰兒用手腳爬，長大用兩條腿走，老了拄拐杖。這是希臘神話裡的謎題。'],
+
+ ['m',1,'煮熟一顆蛋要 5 分鐘，同一鍋一起煮 3 顆蛋要幾分鐘？','5 分鐘',['15 分鐘','10 分鐘','8 分鐘'],'3 顆蛋在同一鍋一起煮，時間一樣是 5 分鐘。'],
+ ['m',1,'小明今年 10 歲，弟弟 5 歲。小明 30 歲時，弟弟幾歲？','25 歲',['15 歲','20 歲','35 歲'],'兩人永遠差 5 歲，30 − 5 = 25。'],
+ ['m',1,'姊姊比妹妹大 3 歲，10 年後姊姊比妹妹大幾歲？','3 歲',['13 歲','30 歲','7 歲'],'兩個人都長了 10 歲，差距還是 3 歲。'],
+ ['m',1,'1 × 2 × 3 × 4 × 5 × 6 × 7 × 8 × 9 × 0 等於多少？','0',['362880','45','1'],'最後乘以 0，不管前面多大，答案都是 0。前面 1 乘到 9 是 362880。'],
+ ['m',1,'從 1 樓走到 10 樓，要爬幾層樓梯？','9 層',['10 層','11 層','8 層'],'1 樓到 2 樓是 1 層，所以 1 樓到 10 樓是 10 − 1 = 9 層。'],
+ ['m',1,'一隻手有 5 根手指，10 隻手有幾根手指？','50 根',['100 根','10 根','20 根'],'一隻手 5 根，5 × 10 = 50。不要被「十根手指頭」騙了。'],
+ ['m',2,'把一根木頭鋸成 5 段，每鋸一次要 2 分鐘，總共要幾分鐘？','8 分鐘',['10 分鐘','12 分鐘','6 分鐘'],'鋸成 5 段只要鋸 4 次，4 × 2 = 8 分鐘。'],
+ ['m',2,'從 1 樓走到 3 樓要 6 分鐘，用一樣的速度，從 1 樓走到 6 樓要幾分鐘？','15 分鐘',['12 分鐘','18 分鐘','10 分鐘'],'1 樓到 3 樓只爬 2 層，每層 3 分鐘；1 樓到 6 樓爬 5 層，5 × 3 = 15。'],
+ ['m',2,'一條 20 公尺長的路，一邊每隔 5 公尺種一棵樹，頭尾都要種，一共要種幾棵？','5 棵',['4 棵','6 棵','10 棵'],'20 ÷ 5 = 4 段。頭尾都種，樹比段數多 1，所以是 5 棵。'],
+ ['m',2,'現在是下午 3 點，再過 100 個小時是幾點？','晚上 7 點',['早上 7 點','下午 3 點','晚上 11 點'],'100 小時 = 4 天又 4 小時。過 4 天還是下午 3 點，再加 4 小時是晚上 7 點。'],
+ ['m',2,'一年 12 個月中，有幾個月有 31 天？','7 個月',['6 個月','5 個月','8 個月'],'1、3、5、7、8、10、12 月都有 31 天，一共 7 個月。'],
+ ['m',2,'100 個人排成一排，小明從前面數是第 40 個，從後面數是第幾個？','第 61 個',['第 60 個','第 59 個','第 62 個'],'小明後面有 100 − 40 = 60 人，所以從後面數，他是第 61 個。'],
+ ['m',2,'一張正方形的紙，從一個角斜斜剪掉一個小三角形（不碰到其他角），剩下的紙有幾個角？','5 個',['3 個','4 個','6 個'],'剪掉 1 個角，切口兩端會多出 2 個新角：4 − 1 + 2 = 5。'],
+ ['m',2,'姊姊有 20 元，給妹妹 5 元之後，兩人的錢一樣多。妹妹原本有幾元？','10 元',['15 元','5 元','20 元'],'姊姊給完剩 15 元。妹妹拿到 5 元後也是 15 元，所以原本有 15 − 5 = 10 元。'],
+ ['m',3,'雞和兔子關在同一個籠子，一共有 10 個頭、28 隻腳。兔子有幾隻？','4 隻',['6 隻','5 隻','8 隻'],'如果 10 隻都是雞，只有 20 隻腳。多出的 8 隻腳是兔子多的，每隻兔子多 2 隻腳，8 ÷ 2 = 4 隻。'],
+ ['m',3,'時鐘敲 6 下要 5 秒，敲 12 下要幾秒？','11 秒',['10 秒','12 秒','6 秒'],'敲 6 下中間只有 5 個間隔，每個間隔 1 秒。敲 12 下有 11 個間隔，就是 11 秒。'],
+ ['m',3,'井深 10 公尺，蝸牛白天往上爬 3 公尺，晚上滑下 2 公尺。第幾天能爬出井口？','第 8 天',['第 10 天','第 9 天','第 7 天'],'前 7 天每天淨爬 1 公尺，7 天後在 7 公尺處。第 8 天白天爬 3 公尺就到 10 公尺出井了，不會再滑下來。'],
+ ['m',3,'30 除以一半，再加 10，等於多少？','70',['25','40','35'],'除以一半就是除以 ½，等於乘以 2：30 ÷ ½ = 60，再加 10 = 70。'],
+ ['m',3,'3 隻貓 3 分鐘抓 3 隻老鼠。照這個速度，100 隻貓抓 100 隻老鼠要幾分鐘？','3 分鐘',['100 分鐘','33 分鐘','300 分鐘'],'每隻貓 3 分鐘抓 1 隻老鼠。100 隻貓同時抓，3 分鐘就抓到 100 隻。'],
+ ['m',3,'抽屜裡有紅襪子和藍襪子各 10 隻。在黑暗中最少要拿幾隻，才能保證有兩隻同色？','3 隻',['2 隻','11 隻','21 隻'],'只有兩種顏色，拿 2 隻可能剛好一紅一藍，第 3 隻一定會和其中一隻同色。'],
+ ['m',3,'從 1 寫到 100，數字「9」一共會寫幾次？','20 次',['10 次','19 次','11 次'],'個位是 9：9、19、29……99，共 10 次；十位是 9：90 到 99，共 10 次。99 有兩個 9，加起來 20 次。'],
+ ['m',3,'一條繩子對折，再對折，然後從正中間剪一刀，繩子變成幾段？','5 段',['4 段','3 段','8 段'],'對折兩次變成 4 股，一刀剪斷 4 股，原來的繩子被剪了 4 個地方，所以變成 5 段。'],
+ ['m',3,'怎麼用 8 個 8 加起來剛好等於 1000？','888 + 88 + 8 + 8 + 8',['888 + 88 + 88','888 + 88 + 8 + 8','88 + 88 + 88 + 88 + 88'],'888 + 88 = 976，再加 3 個 8 就是 1000。數一數：3 + 2 + 1 + 1 + 1，剛好 8 個 8。'],
+ ['m',3,'3 個人 3 天喝完 3 桶水。照這個速度，9 個人 9 天要喝幾桶水？','27 桶',['9 桶','3 桶','81 桶'],'1 個人 3 天喝 1 桶。9 個人 3 天喝 9 桶，9 天是 3 倍，9 × 3 = 27 桶。'],
+ ['m',3,'一個圓形蛋糕切 3 刀，可以橫著切，最多能切成幾塊？','8 塊',['6 塊','7 塊','9 塊'],'先直切兩刀成十字，有 4 塊；再從側面橫著切一刀，上下各 4 塊，一共 8 塊。'],
+ ['m',3,'一天 24 小時裡，時鐘的時針和分針會重疊幾次？','22 次',['24 次','12 次','23 次'],'兩針大約每 1 小時 5 分重疊一次，12 小時重疊 11 次（12 點那次算一次），一天 24 小時就是 22 次。']
+];
+/*DATA-END*/
+const TYPES = {z:{name:'國字字謎', short:'字謎'}, l:{name:'邏輯陷阱', short:'邏輯'}, m:{name:'數學陷阱', short:'數學'}};
+const cnt = {z:0, l:0, m:0};
+const Q = RAW.map(r => ({id:r[0] + (++cnt[r[0]]), t:r[0], lv:r[1], q:r[2], a:r[3], d:r[4], e:r[5]}));
+
+/* ===== 工具 ===== */
+const $ = s => document.querySelector(s);
+const store = {
+  get(k, d){ try{ const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+};
+function shuffle(a){ a = a.slice(); for(let i = a.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); const t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
+const stars = n => '★'.repeat(n);
+const isChar = q => q.t === 'z';
+let soundOn = store.get('bt-sound', true) !== false;
+let AC = null;
+function beep(kind){
+  if(!soundOn) return;
+  try{
+    AC = AC || new (window.AudioContext || window.webkitAudioContext)();
+    const t0 = AC.currentTime;
+    const notes = kind === 'ok' ? [660, 880] : kind === 'bad' ? [240, 190] : [520, 520, 390];
+    notes.forEach((f, i) => {
+      const o = AC.createOscillator(), g = AC.createGain(), st = t0 + i * 0.1;
+      o.type = kind === 'bad' ? 'square' : 'triangle'; o.frequency.value = f;
+      g.gain.setValueAtTime(0.0001, st);
+      g.gain.exponentialRampToValueAtTime(kind === 'bad' ? 0.04 : 0.15, st + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, st + 0.13);
+      o.connect(g); g.connect(AC.destination); o.start(st); o.stop(st + 0.15);
+    });
+  }catch(e){}
+}
+
+/* ===== 出題：優先出還沒出過的題目 ===== */
+function draw(pool, n){
+  n = Math.min(n, pool.length);
+  let seen = store.get('bt-seen', []);
+  let fresh = pool.filter(q => !seen.includes(q.id));
+  if(fresh.length < n){
+    const ids = new Set(pool.map(q => q.id));
+    const keep = shuffle(fresh);
+    seen = seen.filter(id => !ids.has(id));
+    store.set('bt-seen', seen);
+    const rest = shuffle(pool.filter(q => !keep.includes(q)));
+    return keep.concat(rest).slice(0, n);
+  }
+  return shuffle(fresh).slice(0, n);
+}
+function markSeen(q){ const s = store.get('bt-seen', []); if(!s.includes(q.id)){ s.push(q.id); store.set('bt-seen', s); } }
+function filterPool(type, lv){ return Q.filter(q => (type === 'all' || q.t === type) && (lv === 'all' || q.lv === lv)); }
+
+/* ===== 首頁設定 ===== */
+const set = store.get('bt-set', null) || {};
+const cfg = {
+  soloType: set.soloType || 'all', soloLv: set.soloLv || 'all',
+  famN: set.famN || 3, famCount: set.famCount || 10, famType: set.famType || 'all', famTimer: set.famTimer == null ? 30 : set.famTimer
+};
+let names = store.get('bt-names', null) || ['玩家1','玩家2','玩家3','玩家4'];
+function saveCfg(){ store.set('bt-set', cfg); }
+function pills(id, list, key, after){
+  const box = $('#' + id); box.innerHTML = '';
+  list.forEach(([val, label]) => {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'pill'; b.textContent = label;
+    b.setAttribute('aria-pressed', String(cfg[key] === val));
+    b.addEventListener('click', () => {
+      cfg[key] = val; saveCfg();
+      Array.from(box.children).forEach(x => x.setAttribute('aria-pressed', 'false'));
+      b.setAttribute('aria-pressed', 'true');
+      if(after) after();
+    });
+    box.appendChild(b);
+  });
+}
+const typeList = [['all','全部'],['z','字謎'],['l','邏輯'],['m','數學']];
+pills('pSoloType', typeList, 'soloType', soloNote);
+pills('pSoloLv', [['all','全部'],[1,'★'],[2,'★★'],[3,'★★★']], 'soloLv', soloNote);
+pills('pFamN', [[2,'2 人'],[3,'3 人'],[4,'4 人']], 'famN', renderNames);
+pills('pFamCount', [[10,'10 題'],[15,'15 題'],[20,'20 題']], 'famCount');
+pills('pFamType', typeList, 'famType');
+pills('pFamTimer', [[0,'不計時'],[30,'30 秒'],[60,'60 秒']], 'famTimer');
+function soloNote(){
+  const n = filterPool(cfg.soloType, cfg.soloLv).length, st = store.get('bt-stats', {done:0, right:0});
+  $('#soloStart').textContent = '開始挑戰（' + Math.min(10, n) + ' 題）';
+  $('#soloNote').textContent = '這個範圍有 ' + n + ' 題・累積答過 ' + st.done + ' 題，答對 ' + st.right + ' 題';
+}
+function renderNames(){
+  const box = $('#names'); box.innerHTML = '';
+  for(let i = 0; i < cfg.famN; i++){
+    const lb = document.createElement('label'); lb.textContent = '第 ' + (i + 1) + ' 位';
+    const inp = document.createElement('input'); inp.type = 'text'; inp.id = 'name' + i; inp.maxLength = 8; inp.value = names[i] || ('玩家' + (i + 1));
+    inp.addEventListener('input', () => { names[i] = inp.value.trim() || ('玩家' + (i + 1)); store.set('bt-names', names); });
+    lb.appendChild(inp); box.appendChild(lb);
+  }
+}
+function setTab(fam){
+  $('#tabSolo').setAttribute('aria-selected', String(!fam)); $('#tabFam').setAttribute('aria-selected', String(fam));
+  $('#soloSet').hidden = fam; $('#famSet').hidden = !fam;
+  store.set('bt-tab', fam ? 'fam' : 'solo');
+}
+$('#tabSolo').addEventListener('click', () => setTab(false));
+$('#tabFam').addEventListener('click', () => setTab(true));
+function renderBank(){
+  let h = '';
+  Object.keys(TYPES).forEach(t => {
+    const list = Q.filter(q => q.t === t);
+    h += '<h3>' + TYPES[t].name + '（' + list.length + ' 題）</h3><ol>';
+    list.forEach(q => { h += '<li><span class="lvs">' + stars(q.lv) + '</span>' + q.q + '<br><span class="ans">答案：' + q.a + '</span></li>'; });
+    h += '</ol>';
+  });
+  $('#bankBody').innerHTML = h;
+  $('#total').textContent = Q.length;
+}
+
+/* ===== 畫面 ===== */
+function show(id){ ['home','solo','fam','res'].forEach(s => { $('#' + s).hidden = s !== id; }); window.scrollTo(0, 0); }
+function goHome(){ stopTimer(); soloNote(); $('#soundBtn').textContent = '音效：' + (soundOn ? '開' : '關'); show('home'); }
+document.querySelectorAll('[data-home]').forEach(b => b.addEventListener('click', goHome));
+function fillCard(prefix, q){
+  const tag = $('#' + prefix + 'Tag'); tag.className = 'tag ' + q.t; tag.textContent = TYPES[q.t].name;
+  $('#' + prefix + 'Lv').textContent = stars(q.lv);
+  $('#' + prefix + 'Q').textContent = q.q;
+}
+function fillAnswer(prefix, q){
+  const tz = $('#' + prefix + 'Tz'); tz.hidden = !isChar(q); if(isChar(q)) tz.textContent = q.a;
+}
+
+/* ===== 自己挑戰 ===== */
+let G = null;
+function startSolo(){
+  const qs = draw(filterPool(cfg.soloType, cfg.soloLv), 10);
+  G = {kind:'solo', qs, i:0, right:0, wrong:[], answered:false};
+  show('solo'); renderSolo();
+}
+function renderSolo(){
+  const q = G.qs[G.i]; G.answered = false; markSeen(q);
+  $('#sNo').textContent = G.i + 1; $('#sTot').textContent = G.qs.length; $('#sRight').textContent = G.right;
+  $('#sBar').style.width = (G.i / G.qs.length * 100) + '%';
+  fillCard('s', q);
+  const opts = shuffle([q.a].concat(q.d));
+  const box = $('#sOpts');
+  const short = opts.every(o => o.length <= 6);
+  box.className = 'opts' + (short ? ' two' : '');
+  box.innerHTML = '';
+  opts.forEach((o, k) => {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'opt' + (isChar(q) ? ' char' : ''); b.dataset.v = o;
+    b.innerHTML = '<span class="k" aria-hidden="true">' + (k + 1) + '</span><span class="t"></span>';
+    b.querySelector('.t').textContent = o;
+    b.addEventListener('click', () => answerSolo(b));
+    box.appendChild(b);
+  });
+  $('#sRev').hidden = true;
+}
+function answerSolo(b){
+  if(G.answered) return; G.answered = true;
+  const q = G.qs[G.i], ok = b.dataset.v === q.a;
+  Array.from($('#sOpts').children).forEach(x => { x.disabled = true; if(x.dataset.v === q.a) x.classList.add('ok'); });
+  if(ok) G.right++; else { b.classList.add('bad'); G.wrong.push(q); }
+  const st = store.get('bt-stats', {done:0, right:0}); st.done++; if(ok) st.right++; store.set('bt-stats', st);
+  beep(ok ? 'ok' : 'bad');
+  $('#sRight').textContent = G.right;
+  const v = $('#sVerdict');
+  v.className = 'verdict ' + (ok ? 'ok' : 'bad');
+  v.innerHTML = (ok ? '答對了！' : '上當了！') + '答案是 <span class="ans"></span>';
+  v.querySelector('.ans').textContent = '「' + q.a + '」';
+  fillAnswer('s', q);
+  $('#sExp').textContent = q.e;
+  $('#sNext').textContent = G.i === G.qs.length - 1 ? '看成績' : '下一題';
+  $('#sRev').hidden = false;
+  $('#sBar').style.width = ((G.i + 1) / G.qs.length * 100) + '%';
+  $('#sNext').focus({preventScroll:true});
+  $('#sRev').scrollIntoView({block:'nearest', behavior:'smooth'});
+}
+$('#sNext').addEventListener('click', () => { if(G.i < G.qs.length - 1){ G.i++; renderSolo(); window.scrollTo(0, 0); } else finishSolo(); });
+document.addEventListener('keydown', e => {
+  if($('#solo').hidden || !G || G.kind !== 'solo' || G.answered) return;
+  if(/^[1-4]$/.test(e.key)){ const b = $('#sOpts').children[+e.key - 1]; if(b) answerSolo(b); }
+});
+function finishSolo(){
+  const n = G.qs.length;
+  $('#rTitle').textContent = '自己挑戰・成績';
+  $('#rBig').innerHTML = G.right + '<small>/ ' + n + ' 題</small>';
+  const p = G.right / n;
+  $('#rLine').textContent = p === 1 ? '全部答對，一題都沒上當。' : p >= 0.7 ? '大部分都識破了，看看下面上當的題目。' : '急轉彎就是要多看幾次才會習慣，下面是這次上當的題目。';
+  $('#rRank').hidden = true;
+  const list = $('#rList'); list.innerHTML = '';
+  G.wrong.forEach(q => { const li = document.createElement('li'); li.innerHTML = '<span></span><br><b></b>'; li.querySelector('span').textContent = q.q; li.querySelector('b').textContent = '答案：' + q.a; list.appendChild(li); });
+  $('#rListTitle').textContent = G.wrong.length ? '上當的題目（' + G.wrong.length + ' 題）' : '這次沒有上當的題目';
+  $('#rPanel').hidden = !G.wrong.length;
+  show('res');
+}
+
+/* ===== 全家搶答 ===== */
+let timerId = 0, timeEnd = 0, timeLeft = 0;
+function startFam(){
+  const qs = draw(filterPool(cfg.famType, 'all'), cfg.famCount);
+  const players = [];
+  for(let i = 0; i < cfg.famN; i++){ const inp = $('#name' + i); players.push({name:(inp && inp.value.trim()) || names[i] || ('玩家' + (i + 1)), score:0}); }
+  G = {kind:'fam', qs, i:0, players, revealed:false};
+  $('#fTot').textContent = qs.length;
+  show('fam'); renderScores(); renderFam();
+}
+function renderScores(bumpIdx){
+  const box = $('#fScores'); box.style.setProperty('--n', G.players.length); box.innerHTML = '';
+  const top = Math.max.apply(null, G.players.map(p => p.score));
+  G.players.forEach((p, i) => {
+    const d = document.createElement('div'); d.className = 'sc' + (top > 0 && p.score === top ? ' lead' : '') + (i === bumpIdx ? ' bump' : '');
+    d.innerHTML = '<span class="nm"></span><b></b>'; d.querySelector('.nm').textContent = p.name; d.querySelector('b').textContent = p.score;
+    box.appendChild(d);
+  });
+}
+function renderFam(){
+  const q = G.qs[G.i]; G.revealed = false; markSeen(q);
+  $('#fNo').textContent = G.i + 1;
+  fillCard('f', q);
+  $('#fPts').textContent = '這題 ' + q.lv + ' 分';
+  $('#fReveal').hidden = false; $('#fRev').hidden = true;
+  startTimer();
+}
+function startTimer(){
+  stopTimer();
+  const tm = $('#fTimer');
+  if(!cfg.famTimer){ tm.hidden = true; return; }
+  tm.hidden = false; tm.classList.remove('low', 'up');
+  timeEnd = Date.now() + cfg.famTimer * 1000;
+  tick(); timerId = setInterval(tick, 100);
+}
+function tick(){
+  timeLeft = Math.max(0, timeEnd - Date.now());
+  const tm = $('#fTimer'), sec = Math.ceil(timeLeft / 1000);
+  $('#fTimeBar').style.width = (timeLeft / (cfg.famTimer * 1000) * 100) + '%';
+  $('#fTimeTxt').textContent = timeLeft > 0 ? '還剩 ' + sec + ' 秒' : '時間到！可以看答案了';
+  tm.classList.toggle('low', timeLeft > 0 && sec <= 10);
+  if(timeLeft <= 0){ tm.classList.add('up'); stopTimer(); beep('time'); }
+}
+function stopTimer(){ clearInterval(timerId); timerId = 0; }
+$('#fReveal').addEventListener('click', () => {
+  if(!G || G.revealed) return; G.revealed = true; stopTimer();
+  const q = G.qs[G.i];
+  $('#fAns').textContent = '答案：' + q.a;
+  fillAnswer('f', q);
+  $('#fExp').textContent = q.e;
+  const who = $('#fWho'); who.innerHTML = '';
+  G.players.forEach((p, i) => {
+    const b = document.createElement('button'); b.type = 'button'; b.textContent = p.name + ' +' + q.lv;
+    b.addEventListener('click', () => award(i)); who.appendChild(b);
+  });
+  const none = document.createElement('button'); none.type = 'button'; none.className = 'none'; none.textContent = '沒人答對';
+  none.addEventListener('click', () => award(-1)); who.appendChild(none);
+  $('#fReveal').hidden = true; $('#fRev').hidden = false;
+  $('#fRev').scrollIntoView({block:'nearest', behavior:'smooth'});
+});
+function award(i){
+  const q = G.qs[G.i];
+  if(i >= 0){ G.players[i].score += q.lv; beep('ok'); }
+  renderScores(i);
+  if(G.i < G.qs.length - 1){ G.i++; renderFam(); window.scrollTo(0, 0); } else finishFam();
+}
+function finishFam(){
+  stopTimer();
+  const ranked = G.players.slice().sort((a, b) => b.score - a.score);
+  const top = ranked[0].score, winners = ranked.filter(p => p.score === top);
+  $('#rTitle').textContent = '全家搶答・結果';
+  $('#rBig').textContent = top > 0 ? (winners.length > 1 ? '平手！' : '冠軍') : '這輪沒人得分';
+  $('#rLine').textContent = top > 0 ? winners.map(p => p.name).join('、') + '　' + top + ' 分' : '換一批題目再試試。';
+  const rk = $('#rRank'); rk.hidden = false; rk.innerHTML = '';
+  let pos = 0, last = null;
+  ranked.forEach((p, idx) => {
+    if(p.score !== last){ pos = idx + 1; last = p.score; }
+    const li = document.createElement('li'); li.innerHTML = '<span class="pos"></span><span class="nm"></span><b></b>';
+    li.querySelector('.pos').textContent = pos; li.querySelector('.nm').textContent = p.name; li.querySelector('b').textContent = p.score + ' 分';
+    rk.appendChild(li);
+  });
+  $('#rList').innerHTML = '';
+  $('#rListTitle').textContent = '排名';
+  $('#rPanel').hidden = false;
+  beep('ok');
+  show('res');
+}
+
+/* ===== 按鈕 ===== */
+$('#soloStart').addEventListener('click', startSolo);
+$('#famStart').addEventListener('click', startFam);
+$('#rAgain').addEventListener('click', () => { if(G && G.kind === 'fam') startFam(); else startSolo(); });
+$('#soundBtn').addEventListener('click', () => { soundOn = !soundOn; store.set('bt-sound', soundOn); $('#soundBtn').textContent = '音效：' + (soundOn ? '開' : '關'); });
+
+renderBank(); renderNames(); setTab(store.get('bt-tab', 'solo') === 'fam'); goHome();
+})();
+</script>
+</body>
+</html>
