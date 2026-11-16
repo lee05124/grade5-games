@@ -1,0 +1,631 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>圖形實驗室</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&family=Huninn&display=swap">
+<style>
+/* Layout: same graph-paper column as 湊湊樂. Home = two lab cards with options. 線對稱 = 8×8 方格 with a red dashed axis; 展開圖 = 3D stage where the net folds into a cube. */
+:root{
+  --paper:#F3F7FC; --grid:#DCE6F2; --surface:#FFFFFF; --line:#CBD8E8;
+  --ink:#1D2942; --muted:#5A6A86;
+  --tile:#FFD45E; --tile-edge:#D9A21E; --tile-ink:#3B2A00;
+  --op:#2E66D1; --op-soft:#E3ECFB;
+  --red:#D23B3B; --red-soft:#FBE4E4; --good:#1F8A55; --good-soft:#DDF2E6; --gold:#E9A817;
+  --cell-line:#C5D3E6;
+  --f-display:"Huninn","Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
+  --f-num:"Baloo 2","Arial Rounded MT Bold","Helvetica Neue",Arial,sans-serif;
+  --r:14px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#1C2B25; --grid:#263A32; --surface:#22352D; --line:#34493F;
+    --ink:#EEF2E8; --muted:#A8B8AC;
+    --tile:#F3CB52; --tile-edge:#AD8417; --tile-ink:#2A1F00;
+    --op:#8DB6FF; --op-soft:#2A4250;
+    --red:#FF7D7D; --red-soft:#4A2D2D; --good:#6FD6A0; --good-soft:#1E3B2E; --gold:#F1BF3D;
+    --cell-line:#3E5A4D;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#1C2B25; --grid:#263A32; --surface:#22352D; --line:#34493F;
+  --ink:#EEF2E8; --muted:#A8B8AC;
+  --tile:#F3CB52; --tile-edge:#AD8417; --tile-ink:#2A1F00;
+  --op:#8DB6FF; --op-soft:#2A4250;
+  --red:#FF7D7D; --red-soft:#4A2D2D; --good:#6FD6A0; --good-soft:#1E3B2E; --gold:#F1BF3D;
+  --cell-line:#3E5A4D;
+  color-scheme:dark;
+}
+[hidden]{display:none!important}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0; background-color:var(--paper);
+  background-image:linear-gradient(var(--grid) 1px, transparent 1px),linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size:24px 24px; color:var(--ink); font-family:var(--f-display); font-size:16px; line-height:1.6;
+  padding-left:max(16px, env(safe-area-inset-left, 0px)); padding-right:max(16px, env(safe-area-inset-right, 0px)); padding-block:20px 40px;
+}
+.wrap{max-width:560px;margin:0 auto}
+section.screen{display:flex;flex-direction:column;gap:14px}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,a:focus-visible{outline:3px solid var(--op);outline-offset:3px}
+h1{margin:0;font-size:1.9rem;font-weight:400;letter-spacing:.04em;line-height:1.2}
+h1 small{display:block;font-size:.85rem;color:var(--muted);letter-spacing:.02em;margin-top:4px}
+h2{margin:0;font-size:1rem;font-weight:400;color:var(--muted);letter-spacing:.06em}
+.panel{background:var(--surface);border:1.5px solid var(--line);border-radius:var(--r);padding:14px 16px;display:flex;flex-direction:column;gap:12px}
+.panel p{margin:0}
+.lab-head{display:flex;align-items:center;gap:12px}
+.lab-head .icon{width:3rem;height:3rem;flex:none}
+.lab-head b{display:block;font-weight:400;font-size:1.25rem;line-height:1.3}
+.lab-head small{display:block;color:var(--muted);font-size:.88rem;line-height:1.5}
+.pills{display:flex;gap:6px;flex-wrap:wrap}
+.pill{appearance:none;border:1.5px solid var(--line);background:var(--surface);border-radius:999px;padding:3px 13px;font-size:.95rem}
+.pill:hover{border-color:var(--op)}
+.pill[aria-pressed="true"]{background:var(--op);border-color:var(--op);color:var(--surface)}
+.btn{appearance:none;border:0;border-radius:12px;padding:12px 16px;font-size:1.05rem;background:var(--op);color:var(--surface);width:100%}
+.btn:hover{filter:brightness(1.06)}
+.btn.warm{background:var(--tile);color:var(--tile-ink);box-shadow:0 3px 0 var(--tile-edge)}
+.btn.ghost{background:var(--surface);color:var(--ink);border:1.5px solid var(--line)}
+.btn:disabled{opacity:.45;cursor:not-allowed;filter:none}
+.best{font-size:.85rem;color:var(--muted);text-align:center}
+.foot{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.chip-btn{appearance:none;border:1.5px solid var(--line);background:var(--surface);border-radius:999px;padding:4px 14px;font-size:.88rem;color:var(--ink);text-decoration:none;display:inline-block}
+
+.hud{display:flex;align-items:center;gap:6px}
+.back{appearance:none;border:0;background:none;color:var(--op);padding:4px 0;font-size:.95rem;white-space:nowrap;flex:none}
+.hud .ttl{font-size:1.1rem;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stat{flex:none;background:var(--surface);border:1.5px solid var(--line);border-radius:999px;padding:3px 10px;font-size:.85rem;white-space:nowrap}
+.stat b{font-family:var(--f-num);font-size:1.15rem;font-weight:800;font-variant-numeric:tabular-nums}
+.progress{height:8px;background:var(--surface);border:1.5px solid var(--line);border-radius:999px;overflow:hidden}
+.progress i{display:block;height:100%;width:0;background:var(--good);transition:width .35s ease}
+.ask{margin:0;font-size:1.15rem;line-height:1.55}
+.ask small{display:block;font-size:.88rem;color:var(--muted)}
+.msg{margin:0;min-height:1.6em;text-align:center;font-size:1rem;color:var(--muted)}
+.msg.ok{color:var(--good)} .msg.bad{color:var(--red)}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+/* ---------- 線對稱 ---------- */
+.gridwrap{background:var(--surface);border:1.5px solid var(--line);border-radius:18px;padding:10px}
+#symGrid{position:relative;width:100%;max-width:420px;margin:0 auto;aspect-ratio:1;display:grid;grid-template-columns:repeat(8,1fr);touch-action:none;user-select:none;-webkit-user-select:none;
+  border-top:1.5px solid var(--cell-line);border-left:1.5px solid var(--cell-line);outline:none}
+#symGrid:focus-visible{box-shadow:0 0 0 3px var(--op)}
+.cell{border-right:1.5px solid var(--cell-line);border-bottom:1.5px solid var(--cell-line);position:relative}
+.cell.mine{background:var(--op-soft)}
+.cell.mine.lock{background:transparent}
+.cell.given{background:var(--tile)}
+.cell.fill{background:var(--op)}
+.cell.ok{background:var(--good)}
+.cell.extra{background:var(--red)}
+.cell.extra::after{content:"×";position:absolute;inset:0;display:grid;place-items:center;color:var(--surface);font-family:var(--f-num);font-weight:800;font-size:1.3rem;line-height:1}
+.cell.miss::after{content:"";position:absolute;inset:3px;border:2.5px dashed var(--red);border-radius:3px}
+.cell.flash{animation:flash .8s ease-in-out 3}
+@keyframes flash{50%{box-shadow:inset 0 0 0 4px var(--gold)}}
+.cell.cur::before{content:"";position:absolute;inset:1px;border:2.5px solid var(--ink);border-radius:3px;z-index:1}
+#symAxis{position:absolute;inset:0;pointer-events:none;overflow:visible}
+#symAxis line{stroke:var(--red);stroke-width:3.5;stroke-dasharray:9 6;stroke-linecap:round}
+.legend{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;font-size:.85rem;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+.legend i{width:14px;height:14px;border-radius:3px;display:inline-block}
+.tools3{display:grid;grid-template-columns:1fr 1fr 1.4fr;gap:8px}
+
+/* ---------- 展開圖 ---------- */
+.stage{position:relative;height:300px;background:var(--surface);border:1.5px solid var(--line);border-radius:18px;perspective:900px;perspective-origin:50% 40%;overflow:hidden;touch-action:manipulation}
+.net{position:absolute;left:50%;top:50%;transform-style:preserve-3d;transition:transform 1s ease}
+.face{position:absolute;left:0;top:0;transform-style:preserve-3d;transition:transform .7s ease, background .3s;
+  background:var(--tile);border:2px solid var(--tile-edge);color:var(--tile-ink);display:grid;place-items:center;
+  font-family:var(--f-num);font-weight:800;line-height:1;border-radius:3px;backface-visibility:visible}
+.face > .lbl{pointer-events:none}
+.face.pick{cursor:pointer}
+.face.target{background:var(--op);border-color:var(--op);color:var(--surface)}
+.face.right{background:var(--good);border-color:var(--good);color:var(--surface)}
+.face.wrong{background:var(--red);border-color:var(--red);color:var(--surface)}
+.face.dup{background:var(--red);border-color:var(--surface);color:var(--surface)}
+.stage.folded .face{transform:var(--fold)}
+.stage .hintline{position:absolute;left:10px;bottom:8px;right:10px;text-align:center;font-size:.8rem;color:var(--muted)}
+.explain{background:var(--surface);border:1.5px solid var(--line);border-radius:var(--r);padding:12px 14px;line-height:1.7}
+.explain b{font-weight:400}
+.explain .ok{color:var(--good)} .explain .bad{color:var(--red)}
+
+/* ---------- result ---------- */
+.rhead{text-align:center;display:flex;flex-direction:column;align-items:center;gap:4px}
+.rhead .big{font-family:var(--f-num);font-weight:800;font-size:3.8rem;line-height:1;color:var(--red);margin:0}
+.rhead .big small{font-family:var(--f-display);font-weight:400;font-size:1.1rem;color:var(--muted);margin-left:4px}
+.rhead p{margin:0}
+@media (prefers-reduced-motion: reduce){ *{animation:none!important;transition-duration:.01ms!important;transition-delay:0s!important} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ========== 首頁 ========== -->
+  <section class="screen" id="home">
+    <header><h1>圖形實驗室<small>五年級數學：線對稱圖形、正方體展開圖</small></h1></header>
+
+    <section class="panel">
+      <div class="lab-head">
+        <svg class="icon" viewBox="0 0 48 48" aria-hidden="true"><rect x="4" y="4" width="40" height="40" rx="6" fill="var(--op-soft)"/><path d="M12 14h8v8h4v12h-4v-4h-8z" fill="var(--tile)"/><path d="M36 14h-8v8h-4v12h4v-4h8z" fill="var(--op)"/><line x1="24" y1="6" x2="24" y2="42" stroke="var(--red)" stroke-width="2.5" stroke-dasharray="4 3"/></svg>
+        <div><b>線對稱：畫出另一半</b><small>沿著紅色對稱軸對折會完全重合。把空白那一邊塗好。</small></div>
+      </div>
+      <div class="pills" id="pAxis"></div>
+      <button class="btn warm" id="symStart" type="button">開始（5 題）</button>
+      <p class="best" id="symBest"></p>
+    </section>
+
+    <section class="panel">
+      <div class="lab-head">
+        <svg class="icon" viewBox="0 0 48 48" aria-hidden="true"><rect x="4" y="4" width="40" height="40" rx="6" fill="var(--op-soft)"/><g fill="var(--tile)" stroke="var(--tile-edge)" stroke-width="1.2"><rect x="18" y="8" width="9" height="9"/><rect x="9" y="17" width="9" height="9"/><rect x="18" y="17" width="9" height="9"/><rect x="27" y="17" width="9" height="9"/><rect x="18" y="26" width="9" height="9"/><rect x="18" y="35" width="9" height="5"/></g></svg>
+        <div><b>正方體展開圖</b><small>答完會看到展開圖摺起來的樣子。</small></div>
+      </div>
+      <div class="pills" id="pNet"></div>
+      <button class="btn warm" id="netStart" type="button">開始（8 題）</button>
+      <p class="best" id="netBest"></p>
+    </section>
+
+    <div class="foot">
+      <a class="chip-btn" href="index.html">← 五年級湊湊樂</a>
+      <button class="chip-btn" id="soundBtn" type="button">音效：開</button>
+    </div>
+  </section>
+
+  <!-- ========== 線對稱 ========== -->
+  <section class="screen" id="sym" hidden>
+    <div class="hud">
+      <button class="back" type="button" data-home>← 回首頁</button>
+      <span class="ttl">線對稱</span>
+      <span class="stat">第 <b id="yNo">1</b> / 5 題</span>
+      <span class="stat">一次就對 <b id="yPerfect">0</b></span>
+    </div>
+    <div class="progress"><i id="yBar"></i></div>
+    <p class="ask" id="yAsk"></p>
+    <div class="gridwrap">
+      <div id="symGrid" tabindex="0" aria-label="8 乘 8 方格。點格子或用手指拖曳來塗色；鍵盤可用方向鍵移動、空白鍵塗色。">
+        <svg id="symAxis" viewBox="0 0 8 8" preserveAspectRatio="none" aria-hidden="true"><line id="axisLine" x1="4" y1="0" x2="4" y2="8" vector-effect="non-scaling-stroke"/></svg>
+      </div>
+    </div>
+    <div class="legend"><span><i style="background:var(--tile)"></i>題目給的</span><span><i style="background:var(--op)"></i>你塗的</span><span><i style="background:var(--op-soft);border:1px solid var(--line)"></i>可以塗的區域</span></div>
+    <p class="msg" id="yMsg"></p>
+    <div class="tools3">
+      <button class="btn ghost" id="yHint" type="button">提示</button>
+      <button class="btn ghost" id="yClear" type="button">清除</button>
+      <button class="btn" id="yCheck" type="button">檢查</button>
+    </div>
+    <button class="btn warm" id="yNext" type="button" hidden>下一題</button>
+  </section>
+
+  <!-- ========== 展開圖 ========== -->
+  <section class="screen" id="net" hidden>
+    <div class="hud">
+      <button class="back" type="button" data-home>← 回首頁</button>
+      <span class="ttl" id="nTitle">展開圖</span>
+      <span class="stat">第 <b id="nNo">1</b> / 8 題</span>
+      <span class="stat">答對 <b id="nRight">0</b></span>
+    </div>
+    <div class="progress"><i id="nBar"></i></div>
+    <p class="ask" id="nAsk"></p>
+    <div class="stage" id="stage"><div class="net" id="netEl"></div><span class="hintline" id="stageHint"></span></div>
+    <div class="row2" id="nChoice">
+      <button class="btn" id="nYes" type="button">可以摺成正方體</button>
+      <button class="btn ghost" id="nNoBtn" type="button">摺不成</button>
+    </div>
+    <div class="explain" id="nExplain" hidden></div>
+    <div class="row2" id="nAfter" hidden>
+      <button class="btn ghost" id="nReplay" type="button">再看一次</button>
+      <button class="btn warm" id="nNext" type="button">下一題</button>
+    </div>
+  </section>
+
+  <!-- ========== 成績 ========== -->
+  <section class="screen" id="res" hidden>
+    <div class="rhead">
+      <h2 id="rTitle"></h2>
+      <p class="big" id="rBig"></p>
+      <p id="rLine"></p>
+    </div>
+    <button class="btn warm" id="rAgain" type="button">再玩一次</button>
+    <button class="btn ghost" type="button" data-home>回首頁</button>
+  </section>
+</div>
+
+<script>
+(function(){
+"use strict";
+const $ = s => document.querySelector(s);
+const store = {
+  get(k, d){ try{ const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+};
+const rint = n => Math.floor(Math.random() * n);
+function shuffle(a){ a = a.slice(); for(let i = a.length - 1; i > 0; i--){ const j = rint(i + 1); const t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
+const reduced = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+let soundOn = store.get('ms-sound', true) !== false;
+let AC = null;
+function beep(ok){
+  if(!soundOn) return;
+  try{
+    AC = AC || new (window.AudioContext || window.webkitAudioContext)();
+    const t0 = AC.currentTime, notes = ok ? [660, 880] : [240, 190];
+    notes.forEach((f, i) => { const o = AC.createOscillator(), g = AC.createGain(), st = t0 + i * 0.1;
+      o.type = ok ? 'triangle' : 'square'; o.frequency.value = f;
+      g.gain.setValueAtTime(0.0001, st); g.gain.exponentialRampToValueAtTime(ok ? 0.14 : 0.04, st + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, st + 0.13);
+      o.connect(g); g.connect(AC.destination); o.start(st); o.stop(st + 0.15); });
+  }catch(e){}
+}
+function show(id){ ['home','sym','net','res'].forEach(s => { $('#' + s).hidden = s !== id; }); window.scrollTo(0, 0); }
+const cfg = Object.assign({axis:'mix', netMode:'fold'}, store.get('ms-cfg', {}) || {});
+const best = store.get('ms-best', {}) || {};
+function pills(id, list, key){
+  const box = $('#' + id); box.innerHTML = '';
+  list.forEach(([v, label]) => {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'pill'; b.textContent = label;
+    b.setAttribute('aria-pressed', String(cfg[key] === v));
+    b.addEventListener('click', () => { cfg[key] = v; store.set('ms-cfg', cfg); Array.from(box.children).forEach(x => x.setAttribute('aria-pressed', 'false')); b.setAttribute('aria-pressed', 'true'); renderBest(); });
+    box.appendChild(b);
+  });
+}
+pills('pAxis', [['v','直的對稱軸'],['h','橫的對稱軸'],['d','斜的對稱軸'],['mix','混合']], 'axis');
+pills('pNet', [['fold','摺得起來嗎？'],['opp','誰在對面？']], 'netMode');
+function renderBest(){
+  const a = best['sym-' + cfg.axis], n = best['net-' + cfg.netMode];
+  $('#symBest').textContent = a != null ? '這個選項最佳：一次就對 ' + a + ' / 5 題' : '';
+  $('#netBest').textContent = n != null ? '這個選項最佳：答對 ' + n + ' / 8 題' : '';
+}
+function goHome(){ renderBest(); $('#soundBtn').textContent = '音效：' + (soundOn ? '開' : '關'); show('home'); }
+document.querySelectorAll('[data-home]').forEach(b => b.addEventListener('click', goHome));
+$('#soundBtn').addEventListener('click', () => { soundOn = !soundOn; store.set('ms-sound', soundOn); $('#soundBtn').textContent = '音效：' + (soundOn ? '開' : '關'); });
+
+/* =====================================================
+   線對稱
+   ===================================================== */
+const N = 8;
+const AXIS = {
+  v:{name:'直的', mirror:(r, c) => [r, N - 1 - c], given:(r, c) => c < N / 2, edge:(r, c) => c === N / 2 - 1, line:[4, 0, 4, 8], side:'右邊'},
+  h:{name:'橫的', mirror:(r, c) => [N - 1 - r, c], given:(r, c) => r < N / 2, edge:(r, c) => r === N / 2 - 1, line:[0, 4, 8, 4], side:'下面'},
+  d:{name:'斜的', mirror:(r, c) => [c, r], given:(r, c) => r >= c, edge:(r, c) => r === c, line:[0, 0, 8, 8], side:'右上方'}
+};
+const gridEl = $('#symGrid');
+const cells = [];
+for(let i = 0; i < N * N; i++){ const d = document.createElement('div'); d.className = 'cell'; gridEl.appendChild(d); cells.push(d); }
+gridEl.appendChild($('#symAxis'));
+let Y = null;
+function makeShape(ax){
+  const A = AXIS[ax], k = ax === 'd' ? 4 + rint(4) : 5 + rint(4);
+  for(let tries = 0; tries < 200; tries++){
+    const starts = [];
+    for(let r = 0; r < N; r++) for(let c = 0; c < N; c++) if(A.given(r, c) && A.edge(r, c)) starts.push([r, c]);
+    const s0 = starts[rint(starts.length)];
+    const set = new Set([s0[0] * N + s0[1]]);
+    let guard = 0;
+    while(set.size < k && guard++ < 400){
+      const arr = Array.from(set), pick = arr[rint(arr.length)], r = Math.floor(pick / N), c = pick % N;
+      const nb = [[r-1,c],[r+1,c],[r,c-1],[r,c+1]].filter(([y, x]) => y >= 0 && y < N && x >= 0 && x < N && A.given(y, x));
+      const [y, x] = nb[rint(nb.length)] || [r, c]; set.add(y * N + x);
+    }
+    // 斜軸：至少要有兩格不在對角線上，才有東西可以畫
+    const off = Array.from(set).filter(i => { const r = Math.floor(i / N), c = i % N; return !(ax === 'd' && r === c); });
+    if(set.size === k && off.length >= 3) return set;
+  }
+  return null;
+}
+function startSym(){
+  const order = cfg.axis === 'mix' ? shuffle(['v','h','d','v','h']) : Array(5).fill(cfg.axis);
+  Y = {list:order, i:0, perfect:0};
+  show('sym'); newSym();
+}
+function newSym(){
+  const ax = Y.list[Y.i], A = AXIS[ax], given = makeShape(ax);
+  const target = new Set();
+  given.forEach(i => { const r = Math.floor(i / N), c = i % N, [mr, mc] = A.mirror(r, c), j = mr * N + mc; if(j !== i) target.add(j); });
+  Object.assign(Y, {ax, A, given, target, fill:new Set(), tries:0, hinted:false, done:false, cur:[A === AXIS.v ? 0 : 0, N - 1]});
+  const [x1, y1, x2, y2] = A.line; const ln = $('#axisLine');
+  ln.setAttribute('x1', x1); ln.setAttribute('y1', y1); ln.setAttribute('x2', x2); ln.setAttribute('y2', y2);
+  $('#yNo').textContent = Y.i + 1; $('#yPerfect').textContent = Y.perfect;
+  $('#yBar').style.width = (Y.i / Y.list.length * 100) + '%';
+  $('#yAsk').innerHTML = '紅色虛線是<b>' + A.name + '對稱軸</b>，把' + A.side + '塗好，讓整個圖形變成線對稱圖形。<small>要塗 ' + target.size + ' 格</small>';
+  setMsg('', '');
+  $('#yCheck').hidden = false; $('#yHint').hidden = false; $('#yClear').hidden = false; $('#yNext').hidden = true;
+  drawSym();
+}
+function isMine(r, c){ const A = Y.A; if(Y.ax === 'd') return r < c; return !A.given(r, c); }
+function drawSym(result){
+  for(let r = 0; r < N; r++) for(let c = 0; c < N; c++){
+    const i = r * N + c, el = cells[i];
+    let cls = 'cell';
+    if(isMine(r, c)) cls += ' mine' + (Y.done ? ' lock' : '');
+    if(Y.given.has(i)) cls += ' given';
+    if(Y.fill.has(i)){
+      if(result) cls += Y.target.has(i) ? ' ok' : ' extra'; else cls += ' fill';
+    }else if(result && result.showMiss && Y.target.has(i)) cls += ' miss';
+    if(Y.kbd && Y.cur[0] === r && Y.cur[1] === c) cls += ' cur';
+    el.className = cls;
+  }
+}
+function setMsg(t, cls){ const m = $('#yMsg'); m.textContent = t; m.className = 'msg' + (cls ? ' ' + cls : ''); }
+function cellFrom(e){
+  const rc = gridEl.getBoundingClientRect();
+  const c = Math.floor((e.clientX - rc.left) / rc.width * N), r = Math.floor((e.clientY - rc.top) / rc.height * N);
+  return r >= 0 && r < N && c >= 0 && c < N ? [r, c] : null;
+}
+let paint = null;
+function paintCell(r, c){
+  if(!Y || Y.done || !isMine(r, c)) return;
+  const i = r * N + c;
+  if(paint.mode) Y.fill.add(i); else Y.fill.delete(i);
+}
+gridEl.addEventListener('pointerdown', e => {
+  if(!Y || Y.done) return;
+  const p = cellFrom(e); if(!p || !isMine(p[0], p[1])) return;
+  e.preventDefault(); Y.kbd = false;
+  paint = {mode:!Y.fill.has(p[0] * N + p[1]), id:e.pointerId};
+  try{ gridEl.setPointerCapture(e.pointerId); }catch(_){}
+  paintCell(p[0], p[1]); setMsg('', ''); drawSym();
+});
+gridEl.addEventListener('pointermove', e => { if(!paint || e.pointerId !== paint.id) return; const p = cellFrom(e); if(p){ paintCell(p[0], p[1]); drawSym(); } });
+const endPaint = e => { if(paint && e.pointerId === paint.id) paint = null; };
+gridEl.addEventListener('pointerup', endPaint); gridEl.addEventListener('pointercancel', endPaint);
+gridEl.addEventListener('keydown', e => {
+  if(!Y || Y.done) return;
+  const k = e.key, cur = Y.cur;
+  if(k === 'ArrowUp') cur[0] = Math.max(0, cur[0] - 1);
+  else if(k === 'ArrowDown') cur[0] = Math.min(N - 1, cur[0] + 1);
+  else if(k === 'ArrowLeft') cur[1] = Math.max(0, cur[1] - 1);
+  else if(k === 'ArrowRight') cur[1] = Math.min(N - 1, cur[1] + 1);
+  else if(k === ' ' || k === 'Enter'){ if(isMine(cur[0], cur[1])){ const i = cur[0] * N + cur[1]; if(Y.fill.has(i)) Y.fill.delete(i); else Y.fill.add(i); } }
+  else return;
+  e.preventDefault(); Y.kbd = true; drawSym();
+});
+$('#yClear').addEventListener('click', () => { if(!Y || Y.done) return; Y.fill.clear(); setMsg('', ''); drawSym(); });
+$('#yHint').addEventListener('click', () => {
+  if(!Y || Y.done) return;
+  Y.hinted = true;
+  const extra = Array.from(Y.fill).filter(i => !Y.target.has(i));
+  const miss = Array.from(Y.target).filter(i => !Y.fill.has(i));
+  drawSym();
+  let i, text;
+  if(extra.length){ i = extra[0]; text = '閃動的這格多塗了。對折後它的對面沒有黃色格子。'; }
+  else if(miss.length){
+    i = miss[rint(miss.length)];
+    const r = Math.floor(i / N), c = i % N, [gr, gc] = Y.A.mirror(r, c);
+    cells[gr * N + gc].classList.add('flash');
+    text = '閃動的兩格是一對：黃色那格對折過去，就是要塗的這格。';
+  }else{ setMsg('都塗對了，按「檢查」吧。', 'ok'); return; }
+  cells[i].classList.add('flash');
+  setMsg(text, '');
+});
+$('#yCheck').addEventListener('click', () => {
+  if(!Y || Y.done) return;
+  const extra = Array.from(Y.fill).filter(i => !Y.target.has(i));
+  const miss = Array.from(Y.target).filter(i => !Y.fill.has(i));
+  if(!extra.length && !miss.length){
+    Y.done = true;
+    const perfect = Y.tries === 0 && !Y.hinted;
+    if(perfect) Y.perfect++;
+    $('#yPerfect').textContent = Y.perfect;
+    drawSym({});
+    setMsg(perfect ? '完全正確，一次就對！' : '完成了！沿著紅線對折，兩邊會完全重合。', 'ok'); beep(true);
+    $('#yCheck').hidden = true; $('#yHint').hidden = true; $('#yClear').hidden = true; $('#yNext').hidden = false;
+    $('#yNext').textContent = Y.i === Y.list.length - 1 ? '看成績' : '下一題';
+    $('#yBar').style.width = ((Y.i + 1) / Y.list.length * 100) + '%';
+    $('#yNext').focus({preventScroll:true});
+  }else{
+    Y.tries++;
+    drawSym({showMiss:Y.tries >= 2});
+    const parts = [];
+    if(extra.length) parts.push('多塗了 ' + extra.length + ' 格（紅色）');
+    if(miss.length) parts.push('還少 ' + miss.length + ' 格' + (Y.tries >= 2 ? '（虛線框）' : ''));
+    setMsg(parts.join('，') + '。修正後再按一次檢查。', 'bad'); beep(false);
+    setTimeout(() => { if(Y && !Y.done) drawSym(); }, 1600);
+  }
+});
+$('#yNext').addEventListener('click', () => {
+  if(Y.i < Y.list.length - 1){ Y.i++; newSym(); window.scrollTo(0, 0); }
+  else{
+    const key = 'sym-' + cfg.axis; if(best[key] == null || Y.perfect > best[key]){ best[key] = Y.perfect; store.set('ms-best', best); }
+    $('#rTitle').textContent = '線對稱・成績';
+    $('#rBig').innerHTML = Y.perfect + '<small>/ 5 題一次就對</small>';
+    $('#rLine').textContent = Y.perfect === 5 ? '每一題都一次就對。' : '小技巧：每一格到對稱軸的距離，要和它對面那格一樣遠。';
+    G = 'sym'; show('res');
+  }
+});
+$('#symStart').addEventListener('click', startSym);
+
+/* =====================================================
+   正方體展開圖
+   ===================================================== */
+// 把正方體放在展開圖上「滾」一遍：每一格記下貼在桌面的那一面。六格剛好是六個不同的面，才摺得成正方體。
+const OPP = {B:'T', T:'B', N:'S', S:'N', E:'W', W:'E'};
+function roll(o, dr, dc){
+  if(dc === 1) return {B:o.E, E:o.T, T:o.W, W:o.B, N:o.N, S:o.S};
+  if(dc === -1) return {B:o.W, W:o.T, T:o.E, E:o.B, N:o.N, S:o.S};
+  if(dr === 1) return {B:o.S, S:o.T, T:o.N, N:o.B, E:o.E, W:o.W};
+  return {B:o.N, N:o.T, T:o.S, S:o.B, E:o.E, W:o.W};
+}
+function analyze(cellsArr){
+  const idx = new Map(cellsArr.map((p, i) => [p[0] + ',' + p[1], i]));
+  // 以鄰居最多的一格當底面
+  let root = 0, bestDeg = -1;
+  cellsArr.forEach((p, i) => { const d = [[1,0],[-1,0],[0,1],[0,-1]].filter(([a, b]) => idx.has((p[0] + a) + ',' + (p[1] + b))).length; if(d > bestDeg){ bestDeg = d; root = i; } });
+  const face = Array(cellsArr.length).fill(null), parent = Array(cellsArr.length).fill(-1), depth = Array(cellsArr.length).fill(0), dir = Array(cellsArr.length).fill(null);
+  const orient = []; orient[root] = {B:'B', T:'T', N:'N', S:'S', E:'E', W:'W'}; face[root] = 'B';
+  const q = [root];
+  while(q.length){
+    const i = q.shift(), p = cellsArr[i];
+    for(const [dr, dc] of [[0,1],[1,0],[0,-1],[-1,0]]){
+      const j = idx.get((p[0] + dr) + ',' + (p[1] + dc));
+      if(j == null || face[j] != null) continue;
+      orient[j] = roll(orient[i], dr, dc); face[j] = orient[j].B; parent[j] = i; depth[j] = depth[i] + 1; dir[j] = [dr, dc]; q.push(j);
+    }
+  }
+  const valid = new Set(face).size === 6;
+  const dupFaces = new Set(face.filter((f, i) => face.indexOf(f) !== i));
+  return {root, face, parent, depth, dir, valid, dupFaces};
+}
+function normalize(arr){ const mr = Math.min.apply(null, arr.map(p => p[0])), mc = Math.min.apply(null, arr.map(p => p[1])); return arr.map(p => [p[0] - mr, p[1] - mc]); }
+function has2x2(arr){ const s = new Set(arr.map(p => p[0] + ',' + p[1])); return arr.some(([r, c]) => s.has(r + ',' + (c + 1)) && s.has((r + 1) + ',' + c) && s.has((r + 1) + ',' + (c + 1))); }
+function randomHex(){
+  for(;;){
+    const set = new Map([['0,0', [0, 0]]]);
+    while(set.size < 6){
+      const arr = Array.from(set.values()), [r, c] = arr[rint(arr.length)];
+      const [dr, dc] = [[0,1],[1,0],[0,-1],[-1,0]][rint(4)];
+      set.set((r + dr) + ',' + (c + dc), [r + dr, c + dc]);
+    }
+    const arr = normalize(Array.from(set.values()));
+    const h = Math.max.apply(null, arr.map(p => p[0])) + 1, w = Math.max.apply(null, arr.map(p => p[1])) + 1;
+    if(Math.max(h, w) <= 5 && Math.min(h, w) <= 4) return arr;
+  }
+}
+function makeNet(wantValid){
+  for(;;){
+    const arr = randomHex(), a = analyze(arr);
+    if(a.valid !== wantValid) continue;
+    if(!wantValid && has2x2(arr) && Math.random() < 0.75) continue; // 少出一眼就看出來的「田字形」
+    return {cells:arr, a};
+  }
+}
+let Q = null, foldTimer = 0;
+function startNet(){
+  const mode = cfg.netMode;
+  const plan = mode === 'fold' ? shuffle([true, true, true, true, false, false, false, false]) : Array(8).fill(true);
+  Q = {mode, plan, i:0, right:0};
+  $('#nTitle').textContent = mode === 'fold' ? '摺得起來嗎？' : '誰在對面？';
+  show('net'); newNet();
+}
+function faceSize(net){
+  const h = Math.max.apply(null, net.cells.map(p => p[0])) + 1, w = Math.max.apply(null, net.cells.map(p => p[1])) + 1;
+  const st = $('#stage'), avail = Math.min(st.clientWidth - 40, 380);
+  return {s:Math.max(34, Math.min(58, Math.floor(avail / w), Math.floor(220 / h))), w, h};
+}
+function buildNet(net){
+  const netEl = $('#netEl'), stage = $('#stage');
+  stage.classList.remove('folded'); netEl.innerHTML = ''; clearTimeout(foldTimer);
+  const {s, w, h} = faceSize(net), a = net.a, els = [];
+  net.cells.forEach((p, i) => {
+    const d = document.createElement('div'); d.className = 'face'; d.style.width = s + 'px'; d.style.height = s + 'px';
+    d.style.fontSize = Math.round(s * 0.45) + 'px'; d.dataset.i = i;
+    const lb = document.createElement('span'); lb.className = 'lbl'; d.appendChild(lb);
+    els.push(d);
+  });
+  // 把每一面接在「父面」裡，摺的時候會跟著父面一起轉
+  const order = net.cells.map((p, i) => i).sort((x, y) => a.depth[x] - a.depth[y]);
+  order.forEach(i => {
+    const d = els[i], p = net.cells[i];
+    if(i === a.root){ d.style.left = (p[1] * s) + 'px'; d.style.top = (p[0] * s) + 'px'; netEl.appendChild(d); return; }
+    const pp = net.cells[a.parent[i]], [dr, dc] = a.dir[i];
+    d.style.left = ((p[1] - pp[1]) * s) + 'px'; d.style.top = ((p[0] - pp[0]) * s) + 'px';
+    let origin, fold;
+    if(dc === 1){ origin = '0 50%'; fold = 'rotateY(-90deg)'; }
+    else if(dc === -1){ origin = '100% 50%'; fold = 'rotateY(90deg)'; }
+    else if(dr === 1){ origin = '50% 0'; fold = 'rotateX(90deg)'; }
+    else { origin = '50% 100%'; fold = 'rotateX(-90deg)'; }
+    d.style.transformOrigin = origin; d.style.setProperty('--fold', fold);
+    d.style.transitionDelay = reduced ? '0s' : ((a.depth[i] - 1) * 0.55 + 0.5) + 's';
+    els[a.parent[i]].appendChild(d);
+  });
+  const rp = net.cells[a.root];
+  netEl.style.width = (w * s) + 'px'; netEl.style.height = (h * s) + 'px';
+  netEl.style.transformOrigin = ((rp[1] + 0.5) * s) + 'px ' + ((rp[0] + 0.5) * s) + 'px';
+  netEl.style.transition = 'none';
+  netEl.style.transform = 'translate(-50%,-50%)';
+  void netEl.offsetWidth; netEl.style.transition = '';
+  Q.els = els; Q.s = s; Q.rx = (rp[1] + 0.5) * s; Q.ry = (rp[0] + 0.5) * s;
+  return els;
+}
+function fold(){
+  const netEl = $('#netEl'), stage = $('#stage');
+  stage.classList.remove('folded');
+  netEl.style.transform = 'translate(-50%,-50%)';
+  void netEl.offsetWidth;
+  netEl.style.transform = 'translate(' + (-Q.rx) + 'px,' + (-Q.ry) + 'px) translateY(' + Math.round(Q.s * 0.75) + 'px) rotateX(58deg) rotateZ(-30deg) scale(1.35)';
+  clearTimeout(foldTimer);
+  foldTimer = setTimeout(() => stage.classList.add('folded'), reduced ? 0 : 450);
+}
+function newNet(){
+  const valid = Q.plan[Q.i], net = makeNet(valid);
+  Q.net = net; Q.answered = false;
+  $('#nNo').textContent = Q.i + 1; $('#nRight').textContent = Q.right;
+  $('#nBar').style.width = (Q.i / Q.plan.length * 100) + '%';
+  const els = buildNet(net);
+  $('#nExplain').hidden = true; $('#nAfter').hidden = true;
+  if(Q.mode === 'fold'){
+    $('#nAsk').innerHTML = '這張展開圖，能摺成一個正方體嗎？<small>想像底下那面不動，其他面往上摺。</small>';
+    $('#nChoice').hidden = false; $('#stageHint').textContent = '';
+  }else{
+    $('#nChoice').hidden = true;
+    const a = net.a, ids = net.cells.map((p, i) => i).filter(i => i !== a.root || true);
+    const t = rint(6); Q.target = t;
+    Q.answer = a.face.indexOf(OPP[a.face[t]]);
+    let n = 1;
+    els.forEach((d, i) => {
+      if(i === t){ d.classList.add('target'); d.firstChild.textContent = '★'; }
+      else { d.firstChild.textContent = n++; d.classList.add('pick'); d.setAttribute('role', 'button'); d.tabIndex = 0;
+        const go = ev => { ev.stopPropagation(); pickOpp(i); };
+        d.addEventListener('click', go); d.addEventListener('keydown', ev => { if(ev.key === 'Enter' || ev.key === ' '){ ev.preventDefault(); go(ev); } }); }
+    });
+    $('#nAsk').innerHTML = '摺成正方體以後，哪一面會在 <b>★</b> 的對面？<small>直接點那一面。</small>';
+    $('#stageHint').textContent = '點展開圖上的一個數字';
+  }
+}
+function answerFold(saysValid){
+  if(Q.answered) return; Q.answered = true;
+  const a = Q.net.a, ok = saysValid === a.valid;
+  if(ok) Q.right++;
+  $('#nRight').textContent = Q.right;
+  beep(ok);
+  if(!a.valid) Q.els.forEach((d, i) => { if(a.dupFaces.has(a.face[i])) d.classList.add('dup'); });
+  const verdict = ok ? '<b class="ok">答對了！</b>' : '<b class="bad">再想想。</b>';
+  const body = a.valid ? '這張<b>可以</b>摺成正方體：6 個面剛好圍成上、下、前、後、左、右，一面都不重複。'
+    : '這張<b>摺不成</b>正方體：摺起來有兩面會疊在一起（紅色），所以一定會缺一面。' + (has2x2(Q.net.cells) ? '展開圖裡只要有「田」字形的 4 格，就摺不起來。' : '');
+  $('#nExplain').innerHTML = verdict + body + '<br>正方體的展開圖一共只有 11 種。';
+  finishQ();
+}
+function pickOpp(i){
+  if(Q.answered) return; Q.answered = true;
+  const ok = i === Q.answer;
+  if(ok) Q.right++;
+  $('#nRight').textContent = Q.right; beep(ok);
+  Q.els.forEach(d => { d.classList.remove('pick'); d.removeAttribute('role'); d.tabIndex = -1; });
+  Q.els[Q.answer].classList.add('right');
+  if(!ok) Q.els[i].classList.add('wrong');
+  const ansNum = Q.els[Q.answer].firstChild.textContent;
+  $('#nExplain').innerHTML = (ok ? '<b class="ok">答對了！</b>' : '<b class="bad">不對喔。</b>') + '★ 的對面是 <b>' + ansNum + '</b>（綠色）。<br>小技巧：展開圖上排成一直線的三格，頭尾兩格摺起來會在對面。';
+  finishQ();
+}
+function finishQ(){
+  $('#nChoice').hidden = true; $('#stageHint').textContent = '';
+  $('#nExplain').hidden = false; $('#nAfter').hidden = false;
+  $('#nNext').textContent = Q.i === Q.plan.length - 1 ? '看成績' : '下一題';
+  $('#nBar').style.width = ((Q.i + 1) / Q.plan.length * 100) + '%';
+  fold();
+}
+$('#nYes').addEventListener('click', () => answerFold(true));
+$('#nNoBtn').addEventListener('click', () => answerFold(false));
+$('#nReplay').addEventListener('click', () => {
+  const stage = $('#stage'), netEl = $('#netEl');
+  stage.classList.remove('folded'); netEl.style.transform = 'translate(-50%,-50%)';
+  clearTimeout(foldTimer); foldTimer = setTimeout(fold, reduced ? 0 : 900);
+});
+$('#nNext').addEventListener('click', () => {
+  if(Q.i < Q.plan.length - 1){ Q.i++; newNet(); window.scrollTo(0, 0); }
+  else{
+    const key = 'net-' + Q.mode; if(best[key] == null || Q.right > best[key]){ best[key] = Q.right; store.set('ms-best', best); }
+    $('#rTitle').textContent = (Q.mode === 'fold' ? '摺得起來嗎？' : '誰在對面？') + '・成績';
+    $('#rBig').innerHTML = Q.right + '<small>/ 8 題</small>';
+    $('#rLine').textContent = Q.right === 8 ? '全部答對。' : Q.mode === 'fold' ? '記住：有「田」字形、或一排超過 4 格的，都摺不起來。' : '記住：排成一直線的三格，頭尾兩格是對面。';
+    G = 'net'; show('res');
+  }
+});
+$('#netStart').addEventListener('click', startNet);
+let G = '';
+$('#rAgain').addEventListener('click', () => { if(G === 'sym') startSym(); else startNet(); });
+
+goHome();
+window.__ms = {analyze, randomHex, makeNet, normalize};
+})();
+</script>
+</body>
+</html>
