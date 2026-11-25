@@ -277,6 +277,49 @@ function beep(ok){
       o.connect(g); g.connect(AC.destination); o.start(st); o.stop(st + 0.15); }); }catch(e){}
 }
 const best = store.get('rh-best', {}) || {};
+// 題庫輪替：同一台裝置上，題庫裡每一題都出過一次以後才會重複（記在瀏覽器）
+function Deck(key, ids){
+  const all = ids.map(String), valid = new Set(all);
+  const st = store.get(key, null) || {};
+  let seen = new Set((st.s || []).filter(x => valid.has(x))), next = new Set((st.n || []).filter(x => valid.has(x)));
+  if(seen.size >= all.length){ seen = next; next = new Set(); }
+  const save = () => store.set(key, {s:Array.from(seen), n:Array.from(next)});
+  return {
+    // 先從還沒出過的題目抽；不夠時才從已出過的補，並避開新一輪已出過的
+    draw(n, ok){
+      const out = [];
+      const take = list => { for(const x of shuffle(list)){ if(out.length >= n) return; if(out.includes(x) || (ok && !ok(x, out))) continue; out.push(x); } };
+      take(all.filter(x => !seen.has(x)));
+      if(out.length < n) take(all.filter(x => !next.has(x)));
+      if(out.length < n) take(all);
+      return out;
+    },
+    mark(id){
+      id = String(id); if(!valid.has(id)) return;
+      if(!seen.has(id)) seen.add(id); else next.add(id);
+      if(seen.size >= all.length){ seen = next; next = new Set(); }
+      save();
+    },
+    left(){ return all.filter(x => !seen.has(x)).length; }
+  };
+}
+// 沒有固定題庫、由程式產生的題目：記住出過的，不再出（記滿 cap 筆就丟掉最舊的）
+function SeenSet(key, cap){
+  let arr = store.get(key, []) || [], set = new Set(arr);
+  return {
+    has(k){ return set.has(k); },
+    add(k){ if(set.has(k)) return; arr.push(k); if(arr.length > cap) arr = arr.slice(-cap); set = new Set(arr); store.set(key, arr); },
+    reset(){ arr = []; set = new Set(); store.set(key, arr); }
+  };
+}
+const idx = (arr, f) => arr.map((x, i) => i).filter(i => !f || f(arr[i]));
+const D = {
+  kindM:Deck('rh-d-kind-m', idx(MS, x => x.only)),
+  kindS:Deck('rh-d-kind-s', idx(SENSES)),
+  kindP:Deck('rh-d-kind-p', idx(PLAIN)),
+  sense:Object.fromEntries(SENSE_LIST.map(k => [k, Deck('rh-d-sense-' + k, idx(SENSES, x => x[0] === k))])),
+  parts:Deck('rh-d-parts', idx(MS))
+};
 const MODE = {kind:'譬喻還是摹寫？', sense:'哪一種摹寫？', parts:'譬喻拆解'};
 const ROLE = {body:'喻體', word:'喻詞', vehicle:'喻依'};
 const ROLE_HINT = {body:'被比喻的東西', word:'連接的詞，像「像、是、好像」', vehicle:'拿來比喻的東西'};
@@ -300,22 +343,22 @@ let G = null;
 function start(mode){
   let qs;
   if(mode === 'kind'){
-    const m = shuffle(MS.filter(x => x.only)).slice(0, 4).map(x => ({type:'譬喻', m:x}));
-    const s = shuffle(SENSES).slice(0, 4).map(x => ({type:'摹寫', s:x}));
-    const p = shuffle(PLAIN).slice(0, 2).map(x => ({type:'都不是', p:x}));
+    const m = D.kindM.draw(4).map(i => ({type:'譬喻', m:MS[+i], d:D.kindM, id:i}));
+    const s = D.kindS.draw(4).map(i => ({type:'摹寫', s:SENSES[+i], d:D.kindS, id:i}));
+    const p = D.kindP.draw(2).map(i => ({type:'都不是', p:PLAIN[+i], d:D.kindP, id:i}));
     qs = shuffle(m.concat(s, p));
   }else if(mode === 'sense'){
     // 每種感官各 2 題
-    qs = shuffle(SENSE_LIST.flatMap(k => shuffle(SENSES.filter(x => x[0] === k)).slice(0, 2)).map(x => ({s:x})));
+    qs = shuffle(SENSE_LIST.flatMap(k => D.sense[k].draw(2).map(i => ({s:SENSES[+i], d:D.sense[k], id:i}))));
   }else{
-    qs = shuffle(MS).slice(0, 10).map(x => ({m:x}));
+    qs = D.parts.draw(10).map(i => ({m:MS[+i], d:D.parts, id:i}));
   }
   G = {mode, qs, i:0, right:0};
   $('#title').textContent = MODE[mode];
   show('play'); render();
 }
 function render(){
-  const q = G.qs[G.i]; G.answered = false;
+  const q = G.qs[G.i]; G.answered = false; q.d.mark(q.id);
   $('#no').textContent = G.i + 1; $('#right').textContent = G.right;
   $('#bar').style.width = (G.i / G.qs.length * 100) + '%';
   $('#fb').hidden = true; $('#next').hidden = true;

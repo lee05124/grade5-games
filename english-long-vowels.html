@@ -258,15 +258,16 @@ function shuffle(a){ a = a.slice(); for(let i = a.length - 1; i > 0; i--){ const
 function parseWords(p){ return p[2].split('|').map(s => { const i = s.indexOf(' '); return {w:s.slice(0, i), zh:s.slice(i + 1), v:p[0], p:p[1]}; }); }
 const ALL = PATTERNS.flatMap(parseWords);
 
-function makeState(mode){
+function makeState(mode, pick){
   const S = {mode, types:[], g:null, uid:0};
   if(mode === 'sound'){
     S.types = VOWELS.map(v => ({k:v, items:ALL.filter(x => x.v === v)}));
   }else if(mode === 'pattern'){
-    S.types = shuffle(PATTERNS).slice(0, NTYPES).map(p => ({k:p[1], v:p[0], items:parseWords(p)}));
+    S.types = (Array.isArray(pick) ? pick.map(i => PATTERNS[i]) : shuffle(PATTERNS).slice(0, NTYPES)).map(p => ({k:p[1], v:p[0], items:parseWords(p)}));
   }else{
-    const v = VOWELS[rint(VOWELS.length)];
-    S.types = shuffle(ALL.filter(x => x.v === v)).slice(0, NTYPES).map((it, i) => ({k:it.w, ci:i + 1, items:[it]}));
+    const v = pick ? pick.v : VOWELS[rint(VOWELS.length)];
+    const chosen = pick ? pick.words.map(w => ALL.find(x => x.w === w)) : shuffle(ALL.filter(x => x.v === v)).slice(0, NTYPES);
+    S.types = chosen.map((it, i) => ({k:it.w, ci:i + 1, items:[it]}));
   }
   return S;
 }
@@ -357,6 +358,60 @@ const store = {
   set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
 };
 let best = store.get('lv-best', {}) || {};
+// 題庫輪替：同一台裝置上，題庫裡每一題都出過一次以後才會重複（記在瀏覽器）
+function Deck(key, ids){
+  const all = ids.map(String), valid = new Set(all);
+  const st = store.get(key, null) || {};
+  let seen = new Set((st.s || []).filter(x => valid.has(x))), next = new Set((st.n || []).filter(x => valid.has(x)));
+  if(seen.size >= all.length){ seen = next; next = new Set(); }
+  const save = () => store.set(key, {s:Array.from(seen), n:Array.from(next)});
+  return {
+    // 先從還沒出過的題目抽；不夠時才從已出過的補，並避開新一輪已出過的
+    draw(n, ok){
+      const out = [];
+      const take = list => { for(const x of shuffle(list)){ if(out.length >= n) return; if(out.includes(x) || (ok && !ok(x, out))) continue; out.push(x); } };
+      take(all.filter(x => !seen.has(x)));
+      if(out.length < n) take(all.filter(x => !next.has(x)));
+      if(out.length < n) take(all);
+      return out;
+    },
+    mark(id){
+      id = String(id); if(!valid.has(id)) return;
+      if(!seen.has(id)) seen.add(id); else next.add(id);
+      if(seen.size >= all.length){ seen = next; next = new Set(); }
+      save();
+    },
+    left(){ return all.filter(x => !seen.has(x)).length; }
+  };
+}
+// 沒有固定題庫、由程式產生的題目：記住出過的，不再出（記滿 cap 筆就丟掉最舊的）
+function SeenSet(key, cap){
+  let arr = store.get(key, []) || [], set = new Set(arr);
+  return {
+    has(k){ return set.has(k); },
+    add(k){ if(set.has(k)) return; arr.push(k); if(arr.length > cap) arr = arr.slice(-cap); set = new Set(arr); store.set(key, arr); },
+    reset(){ arr = []; set = new Set(); store.set(key, arr); }
+  };
+}
+// 每局抽到的拼法、單字輪流換，全部輪過才重複
+const GROUPS = {pattern:Deck('lv-d-pattern', PATTERNS.map((_, i) => i)), vowel:Deck('lv-d-same-v', VOWELS)};
+const SAME_WORDS = Object.fromEntries(VOWELS.map(v => [v, Deck('lv-d-same-' + v, ALL.filter(x => x.v === v).map(x => x.w))]));
+const QKEY = 'lv-q', QMODES = ['sound','pattern'], ITEM_ID = it => it.w;
+// 盤面補進來的字接續上一局的順序：同一組的字全部輪過才會從頭出現
+function loadQueues(){
+  if(!QMODES.includes(S.mode)) return;
+  const all = store.get(QKEY, {}) || {};
+  S.types.forEach(t => {
+    const saved = all[S.mode + ':' + t.k];
+    if(Array.isArray(saved) && saved.length){ const q = saved.map(x => t.items.find(it => ITEM_ID(it) === x)).filter(Boolean); if(q.length) t.q = q; }
+  });
+}
+function saveQueues(){
+  if(!S || !QMODES.includes(S.mode)) return;
+  const all = store.get(QKEY, {}) || {};
+  S.types.forEach(t => { all[S.mode + ':' + t.k] = (t.q || []).map(ITEM_ID); });
+  store.set(QKEY, all);
+}
 let soundOn = store.get('lv-sound', true) !== false;
 let speakOn = store.get('lv-speak', true) !== false;
 let zhOn = store.get('lv-zh', false) === true;
@@ -435,7 +490,10 @@ let score = 0, moves = MOVES, learned = new Map(), hintT = 0, idleT = 0, gen = 0
 const EL = new Map();
 function startGame(mode){
   gen++;
-  S = makeState(mode); fillBoard(S);
+  let pick = null;
+  if(mode === 'pattern'){ pick = GROUPS.pattern.draw(NTYPES).map(Number); pick.forEach(i => GROUPS.pattern.mark(i)); }
+  else if(mode === 'same'){ const v = GROUPS.vowel.draw(1)[0]; GROUPS.vowel.mark(v); const words = SAME_WORDS[v].draw(NTYPES); words.forEach(w => SAME_WORDS[v].mark(w)); pick = {v, words}; }
+  S = makeState(mode, pick); loadQueues(); fillBoard(S); saveQueues();
   score = 0; moves = MOVES; learned = new Map(); sel = null; drag = null; busy = false;
   boardEl.querySelectorAll('.tile,.pop').forEach(x => x.remove()); EL.clear();
   $('#pTitle').textContent = MODE[mode].name;
@@ -526,7 +584,7 @@ async function trySwap(a, b){
   while(m.hits.length){ combo++; await resolve(m, combo); if(g0 !== gen) return; m = findMatches(S); }
   if(moves <= 0){ busy = false; setTimeout(() => { if(g0 === gen) finish(); }, 500); return; }
   if(!findMoves(S, 1).length){ setMsg('沒有可以消的組合了，重新洗牌', 'warn'); await reshuffle(g0); if(g0 !== gen) return; }
-  busy = false; poke();
+  saveQueues(); busy = false; poke();
 }
 async function resolve(m, combo){
   const pts = scoreOf(S, m, combo);
@@ -617,7 +675,7 @@ function hint(auto){
 function poke(){ clearTimeout(idleT); idleT = setTimeout(() => { if(!$('#play').hidden) hint(true); }, 15000); }
 
 function finish(){
-  clearTimeout(idleT); clearHint();
+  clearTimeout(idleT); clearHint(); saveQueues();
   const th = STARS[S.mode], st = score >= th[2] ? 3 : score >= th[1] ? 2 : score >= th[0] ? 1 : 0;
   if(st > (best[S.mode] || 0)){ best[S.mode] = st; store.set('lv-best', best); }
   $('#rTitle').textContent = MODE[S.mode].name + '・本局結束';

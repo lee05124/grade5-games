@@ -258,6 +258,41 @@ function beep(ok){
 function show(id){ ['home','sym','net','res'].forEach(s => { $('#' + s).hidden = s !== id; }); window.scrollTo(0, 0); }
 const cfg = Object.assign({axis:'mix', netMode:'fold'}, store.get('ms-cfg', {}) || {});
 const best = store.get('ms-best', {}) || {};
+// 題庫輪替：同一台裝置上，題庫裡每一題都出過一次以後才會重複（記在瀏覽器）
+function Deck(key, ids){
+  const all = ids.map(String), valid = new Set(all);
+  const st = store.get(key, null) || {};
+  let seen = new Set((st.s || []).filter(x => valid.has(x))), next = new Set((st.n || []).filter(x => valid.has(x)));
+  if(seen.size >= all.length){ seen = next; next = new Set(); }
+  const save = () => store.set(key, {s:Array.from(seen), n:Array.from(next)});
+  return {
+    // 先從還沒出過的題目抽；不夠時才從已出過的補，並避開新一輪已出過的
+    draw(n, ok){
+      const out = [];
+      const take = list => { for(const x of shuffle(list)){ if(out.length >= n) return; if(out.includes(x) || (ok && !ok(x, out))) continue; out.push(x); } };
+      take(all.filter(x => !seen.has(x)));
+      if(out.length < n) take(all.filter(x => !next.has(x)));
+      if(out.length < n) take(all);
+      return out;
+    },
+    mark(id){
+      id = String(id); if(!valid.has(id)) return;
+      if(!seen.has(id)) seen.add(id); else next.add(id);
+      if(seen.size >= all.length){ seen = next; next = new Set(); }
+      save();
+    },
+    left(){ return all.filter(x => !seen.has(x)).length; }
+  };
+}
+// 沒有固定題庫、由程式產生的題目：記住出過的，不再出（記滿 cap 筆就丟掉最舊的）
+function SeenSet(key, cap){
+  let arr = store.get(key, []) || [], set = new Set(arr);
+  return {
+    has(k){ return set.has(k); },
+    add(k){ if(set.has(k)) return; arr.push(k); if(arr.length > cap) arr = arr.slice(-cap); set = new Set(arr); store.set(key, arr); },
+    reset(){ arr = []; set = new Set(); store.set(key, arr); }
+  };
+}
 function pills(id, list, key){
   const box = $('#' + id); box.innerHTML = '';
   list.forEach(([v, label]) => {
@@ -292,7 +327,13 @@ const cells = [];
 for(let i = 0; i < N * N; i++){ const d = document.createElement('div'); d.className = 'cell'; gridEl.appendChild(d); cells.push(d); }
 gridEl.appendChild($('#symAxis'));
 let Y = null;
+const symSeens = {}, symSeen = ax => symSeens[ax] || (symSeens[ax] = SeenSet('ms-s-sym-' + ax, 600));
+const shapeKey = set => Array.from(set).sort((x, y) => x - y).join(',');
 function makeShape(ax){
+  for(let pass = 0; pass < 2; pass++){ const got = makeShape1(ax); if(got) return got; symSeen(ax).reset(); }
+  return makeShape1(ax, true);
+}
+function makeShape1(ax, any){
   const A = AXIS[ax], k = ax === 'd' ? 4 + rint(4) : 5 + rint(4);
   for(let tries = 0; tries < 200; tries++){
     const starts = [];
@@ -307,7 +348,7 @@ function makeShape(ax){
     }
     // 斜軸：至少要有兩格不在對角線上，才有東西可以畫
     const off = Array.from(set).filter(i => { const r = Math.floor(i / N), c = i % N; return !(ax === 'd' && r === c); });
-    if(set.size === k && off.length >= 3) return set;
+    if(set.size === k && off.length >= 3 && (any || !symSeen(ax).has(shapeKey(set)))) return set;
   }
   return null;
 }
@@ -318,6 +359,7 @@ function startSym(){
 }
 function newSym(){
   const ax = Y.list[Y.i], A = AXIS[ax], given = makeShape(ax);
+  symSeen(ax).add(shapeKey(given));
   const target = new Set();
   given.forEach(i => { const r = Math.floor(i / N), c = i % N, [mr, mc] = A.mirror(r, c), j = mr * N + mc; if(j !== i) target.add(j); });
   Object.assign(Y, {ax, A, given, target, fill:new Set(), tries:0, hinted:false, done:false, cur:[A === AXIS.v ? 0 : 0, N - 1]});
@@ -487,11 +529,57 @@ function makeNet(wantValid){
     return {cells:arr, a};
   }
 }
+function canon(arr){
+  const forms = []; let cur = normalize(arr);
+  for(let f = 0; f < 2; f++){
+    for(let r = 0; r < 4; r++){ cur = normalize(cur.map(([y, x]) => [x, -y])); forms.push(cur.map(p => p.join(',')).sort().join(';')); }
+    cur = normalize(cur.map(([y, x]) => [y, -x]));
+  }
+  return forms.sort()[0];
+}
+function allHexominoes(){
+  let level = new Map([[canon([[0, 0]]), [[0, 0]]]]);
+  for(let n = 2; n <= 6; n++){
+    const nx = new Map();
+    level.forEach(cells => {
+      const has = new Set(cells.map(p => p.join(',')));
+      cells.forEach(([r, c]) => [[1,0],[-1,0],[0,1],[0,-1]].forEach(([a, b]) => {
+        if(has.has((r + a) + ',' + (c + b))) return;
+        const nc = normalize(cells.concat([[r + a, c + b]])), k = canon(nc);
+        if(!nx.has(k)) nx.set(k, nc);
+      }));
+    });
+    level = nx;
+  }
+  return level;
+}
+const HEX = new Map(), NETD = {};
+(function(){
+  const ids = {valid:[], invA:[], invB:[]};
+  allHexominoes().forEach((cells, k) => {
+    const h = Math.max.apply(null, cells.map(p => p[0])) + 1, w = Math.max.apply(null, cells.map(p => p[1])) + 1;
+    if(Math.max(h, w) > 5 || Math.min(h, w) > 4) return;   // 一排 6 格的放不進畫面，不出
+    HEX.set(k, cells);
+    if(analyze(cells).valid) ids.valid.push(k); else if(has2x2(cells)) ids.invB.push(k); else ids.invA.push(k);
+  });
+  NETD.validFold = Deck('ms-d-net-valid-fold', ids.valid);   // 能摺的 11 種（「摺得起來嗎」用）
+  NETD.validOpp = Deck('ms-d-net-valid-opp', ids.valid);     // 能摺的 11 種（「誰在對面」用）
+  NETD.invA = Deck('ms-d-net-inv-a', ids.invA);     // 不能摺、沒有田字形
+  NETD.invB = Deck('ms-d-net-inv-b', ids.invB);     // 不能摺、有田字形（比較容易看出來，出得少一點）
+  NETD.counts = {valid:ids.valid.length, invA:ids.invA.length, invB:ids.invB.length};
+})();
+function orient(cells){
+  let cur = cells.map(p => p.slice());
+  const rot = rint(4), flip = rint(2);
+  for(let i = 0; i < rot; i++) cur = cur.map(([y, x]) => [x, -y]);
+  if(flip) cur = cur.map(([y, x]) => [y, -x]);
+  return normalize(cur);
+}
 let Q = null, foldTimer = 0;
 function startNet(){
   const mode = cfg.netMode;
   const plan = mode === 'fold' ? shuffle([true, true, true, true, false, false, false, false]) : Array(8).fill(true);
-  Q = {mode, plan, i:0, right:0};
+  Q = {mode, plan, i:0, right:0, used:new Set()};
   $('#nTitle').textContent = mode === 'fold' ? '摺得起來嗎？' : '誰在對面？';
   show('net'); newNet();
 }
@@ -545,7 +633,11 @@ function fold(){
   foldTimer = setTimeout(() => stage.classList.add('folded'), reduced ? 0 : 450);
 }
 function newNet(){
-  const valid = Q.plan[Q.i], net = makeNet(valid);
+  const valid = Q.plan[Q.i];
+  const deck = valid ? (Q.mode === 'opp' ? NETD.validOpp : NETD.validFold) : (Math.random() < 0.25 ? NETD.invB : NETD.invA);
+  const key = deck.draw(1, x => !Q.used.has(x))[0];
+  Q.used.add(key); deck.mark(key);
+  const cells = orient(HEX.get(key)), net = {cells, a:analyze(cells)};
   Q.net = net; Q.answered = false;
   $('#nNo').textContent = Q.i + 1; $('#nRight').textContent = Q.right;
   $('#nBar').style.width = (Q.i / Q.plan.length * 100) + '%';
@@ -624,7 +716,7 @@ let G = '';
 $('#rAgain').addEventListener('click', () => { if(G === 'sym') startSym(); else startNet(); });
 
 goHome();
-window.__ms = {analyze, randomHex, makeNet, normalize};
+window.__ms = {analyze, randomHex, makeNet, normalize, canon, NETD};
 })();
 </script>
 </body>

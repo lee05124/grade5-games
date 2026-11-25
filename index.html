@@ -375,6 +375,42 @@ h1 small{display:block;font-size:.85rem;color:var(--muted);letter-spacing:.02em}
   const rnd=(lo,hi)=>lo+Math.floor(Math.random()*(hi-lo+1));
   const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=rnd(0,i);[a[i],a[j]]=[a[j],a[i]]}return a};
   const pick=(arr,avoid)=>{let x;do{x=arr[rnd(0,arr.length-1)]}while(arr.length>1&&x===avoid);return x};
+  const store={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+  // 題庫輪替：同一台裝置上，題庫裡每一題都出過一次以後才會重複（記在瀏覽器）
+  function Deck(key, ids){
+    const all = ids.map(String), valid = new Set(all);
+    const st = store.get(key, null) || {};
+    let seen = new Set((st.s || []).filter(x => valid.has(x))), next = new Set((st.n || []).filter(x => valid.has(x)));
+    if(seen.size >= all.length){ seen = next; next = new Set(); }
+    const save = () => store.set(key, {s:Array.from(seen), n:Array.from(next)});
+    return {
+      // 先從還沒出過的題目抽；不夠時才從已出過的補，並避開新一輪已出過的
+      draw(n, ok){
+        const out = [];
+        const take = list => { for(const x of shuffle(list)){ if(out.length >= n) return; if(out.includes(x) || (ok && !ok(x, out))) continue; out.push(x); } };
+        take(all.filter(x => !seen.has(x)));
+        if(out.length < n) take(all.filter(x => !next.has(x)));
+        if(out.length < n) take(all);
+        return out;
+      },
+      mark(id){
+        id = String(id); if(!valid.has(id)) return;
+        if(!seen.has(id)) seen.add(id); else next.add(id);
+        if(seen.size >= all.length){ seen = next; next = new Set(); }
+        save();
+      },
+      left(){ return all.filter(x => !seen.has(x)).length; }
+    };
+  }
+  // 沒有固定題庫、由程式產生的題目：記住出過的，不再出（記滿 cap 筆就丟掉最舊的）
+  function SeenSet(key, cap){
+    let arr = store.get(key, []) || [], set = new Set(arr);
+    return {
+      has(k){ return set.has(k); },
+      add(k){ if(set.has(k)) return; arr.push(k); if(arr.length > cap) arr = arr.slice(-cap); set = new Set(arr); store.set(key, arr); },
+      reset(){ arr = []; set = new Set(); store.set(key, arr); }
+    };
+  }
   function say(id,t,cls){const m=$(id);m.textContent=t||'';m.className='msg'+(cls?' '+cls:'')}
   function shakeEl(el){if(!el)return;el.classList.remove('shake');void el.offsetWidth;el.classList.add('shake')}
 
@@ -391,8 +427,15 @@ h1 small{display:block;font-size:.85rem;color:var(--muted);letter-spacing:.02em}
   }
   function lose(game){G.streak[game]=0;renderStats()}
   function renderStats(){$('score').textContent=G.score;$('streak').textContent=G.streak[G.game]}
+  // 題目真的出現在畫面上才算「出過」
+  function markShown(g){
+    if(g==='math'&&S&&!S.marked){S.marked=1;if(S.mode==='hard')hardSeen.add(pzId(S.puzzle)+'='+S.puzzle.target);else mathDeck(S.mode).mark(pzId(S.puzzle))}
+    else if(g==='word'&&W&&!W.marked){W.marked=1;deckWord.mark(CHARS.indexOf(W.item))}
+    else if(g==='idiom'&&I&&!I.marked){I.marked=1;deckIdiom(I.mode).mark(IDIOMS.indexOf(I.item))}
+    else if(g==='match'&&M&&!M.marked){M.marked=1;if(M.ids)M.ids.forEach(i=>deckMatch(M.mode).mark(i));if(M.mkeys)M.mkeys.forEach(k=>matchSeen.add(k))}
+  }
   function setGame(g){
-    G.game=g;
+    G.game=g;markShown(g);
     document.querySelectorAll('.subjects button').forEach(b=>b.setAttribute('aria-selected',b.dataset.game===g));
     ['math','word','idiom','match'].forEach(k=>$('g-'+k).hidden=k!==g);
     renderStats();
@@ -444,22 +487,35 @@ h1 small{display:block;font-size:.85rem;color:var(--muted);letter-spacing:.02em}
     }
     memo.set(k,out);return out;
   }
+  // 暖身、經典 24：先列出所有有解的題目，當成題庫輪流出，全部出過才重複
+  const mathLists={},mathDecks={};
+  function mathList(mode){
+    if(mathLists[mode])return mathLists[mode];
+    const hi=mode==='easy'?9:10,t=mode==='easy'?10:24,out=[];
+    for(let a=1;a<=hi;a++)for(let b=a;b<=hi;b++)for(let c=b;c<=hi;c++)for(let d=c;d<=hi;d++){
+      if(solve([a,b,c,d].map(n=>R(n)),t))out.push([a,b,c,d].join(','));
+    }
+    return mathLists[mode]=out;
+  }
+  const mathDeck=m=>mathDecks[m]||(mathDecks[m]=Deck('ccl-d-math-'+m,mathList(m)));
+  const pzId=p=>p.nums.slice().sort((a,b)=>a-b).join(',');
+  // 挑戰：可能的題目太多，改成記住出過的題目，不再出
+  const hardSeen=SeenSet('ccl-s-math-hard',4000);
   function makePuzzle(mode){
-    for(let tries=0;tries<400;tries++){
-      if(mode==='easy'){
-        const nums=[0,0,0,0].map(()=>rnd(1,9));
-        if(solve(nums.map(n=>R(n)),10))return{nums,target:10};
-      }else if(mode==='classic'){
-        const nums=[0,0,0,0].map(()=>rnd(1,10));
-        if(solve(nums.map(n=>R(n)),24))return{nums,target:24};
-      }else{
+    if(mode!=='hard'){
+      const k=mathDeck(mode).draw(1)[0];
+      return{nums:shuffle(k.split(',').map(Number)),target:mode==='easy'?10:24};
+    }
+    for(let pass=0;pass<2;pass++){
+      for(let tries=0;tries<400;tries++){
         const nums=[0,0,0,0,0].map(()=>rnd(1,9));
         const res=[...allResults(nums.map(n=>R(n)),new Map()).values()]
-          .filter(v=>v.d===1&&v.n>=30&&v.n<=99).map(v=>v.n);
+          .filter(v=>v.d===1&&v.n>=30&&v.n<=99).map(v=>v.n).filter(t=>!hardSeen.has(pzId({nums})+'='+t));
         if(res.length)return{nums,target:res[rnd(0,res.length-1)]};
       }
+      hardSeen.reset();
     }
-    return mode==='easy'?{nums:[1,2,3,4],target:10}:{nums:[3,3,8,8],target:24};
+    return{nums:[3,3,8,8],target:24};
   }
 
   let S, uid=1, popId=null;
@@ -471,6 +527,7 @@ h1 small{display:block;font-size:.85rem;color:var(--muted);letter-spacing:.02em}
   const plain=v=>v.d===1?String(v.n):v.n+'/'+v.d;
 
   function renderMath(){
+    if(G.game==='math')markShown('math');
     document.querySelectorAll('#g-math .modes button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.mode===S.mode));
     $('target').textContent=S.puzzle.target;
     $('qno').textContent='第 '+S.q+' 題';
@@ -650,9 +707,10 @@ h1 small{display:block;font-size:.85rem;color:var(--muted);letter-spacing:.02em}
   // 已知的部件組合，用來避免干擾積木也能拼出別的字
   const COMBOS=new Set(CHARS.map(c=>[c[1],c[2]].sort().join('|')));
   const PARTS=[...new Set(CHARS.flatMap(c=>[c[1],c[2]]))];
+  const deckWord=Deck('ccl-d-word',CHARS.map((_,i)=>i));
   let W;
   function freshWord(q,prev){
-    const item=pick(CHARS,prev);
+    const item=CHARS[+deckWord.draw(1)[0]];
     const [ans,p1,p2]=item;
     const pool=[p1,p2];
     for(const c of shuffle(PARTS.filter(p=>p!==p1&&p!==p2))){
@@ -663,6 +721,7 @@ h1 small{display:block;font-size:.85rem;color:var(--muted);letter-spacing:.02em}
     return{item,tiles,sel:[],hintUsed:false,done:null,q:q||1,wrong:0};
   }
   function renderWord(){
+    if(G.game==='word')markShown('word');
     const [ans,p1,p2,clue]=W.item;
     $('w-qno').textContent='第 '+W.q+' 題';
     $('w-word').innerHTML=[...clue].map(ch=>ch==='＿'
@@ -828,9 +887,10 @@ h1 small{display:block;font-size:.85rem;color:var(--muted);letter-spacing:.02em}
     ['莫名其妙','說不出其中的道理，形容事情很奇怪。']
   ];
   const ALLCH=[...new Set(IDIOMS.flatMap(x=>[...x[0]]))];
+  const deckI={},deckIdiom=m=>deckI[m]||(deckI[m]=Deck('ccl-d-idiom-'+m,IDIOMS.map((_,i)=>i)));
   let I;
   function freshIdiom(mode,q,prev){
-    const item=pick(IDIOMS,prev);
+    const item=IDIOMS[+deckIdiom(mode).draw(1)[0]];
     const chars=[...item[0]];
     const blanks=mode==='sort'?[0,1,2,3]:shuffle([0,1,2,3]).slice(0,2).sort();
     const need=blanks.map(i=>chars[i]);
@@ -840,6 +900,7 @@ h1 small{display:block;font-size:.85rem;color:var(--muted);letter-spacing:.02em}
     return{mode,item,blanks,tiles,fill:{},hintUsed:false,done:null,q:q||1};
   }
   function renderIdiom(){
+    if(G.game==='idiom')markShown('idiom');
     document.querySelectorAll('#g-idiom .modes button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.imode===I.mode));
     $('i-qno').textContent='第 '+I.q+' 題';
     const chars=[...I.item[0]];
@@ -926,16 +987,19 @@ h1 small{display:block;font-size:.85rem;color:var(--muted);letter-spacing:.02em}
     const x=DECS[rnd(0,DECS.length-1)];return{l:x[0],v:R(x[1],x[2])};
   }
   let M;
+  const deckM={},deckMatch=m=>deckM[m]||(deckM[m]=Deck('ccl-d-match-'+m,(m==='idiom'?IDIOMS:CHARS).map((_,i)=>i)));
+  const matchSeen=SeenSet('ccl-s-match-math',2000);
   function freshMatch(mode,q){
-    let pairs=[];
-    if(mode==='idiom')pairs=shuffle(IDIOMS).slice(0,5).map(x=>({l:x[0],r:x[1]}));
-    else if(mode==='char')pairs=shuffle(CHARS).slice(0,5).map(x=>({l:`${x[1]} + ${x[2]}`,r:x[0]}));
-    else{const seen=new Set(),seenL=new Set();let guard=0;
-      while(pairs.length<5&&guard++<500){const p=mathPair();const k=key(p.v);if(seen.has(k)||seenL.has(p.l))continue;seen.add(k);seenL.add(p.l);pairs.push({l:p.l,r:fmt(p.v)})}}
-    return{mode,left:pairs.map((p,i)=>({id:i,h:p.l})),right:shuffle(pairs.map((p,i)=>({id:i,h:p.r}))),sel:null,matched:{},mistakes:0,hinted:false,done:null,q:q||1};
+    let pairs=[],ids=null,mkeys=null;
+    if(mode==='idiom'){ids=deckMatch('idiom').draw(5);pairs=ids.map(i=>IDIOMS[+i]).map(x=>({l:x[0],r:x[1]}))}
+    else if(mode==='char'){ids=deckMatch('char').draw(5);pairs=ids.map(i=>CHARS[+i]).map(x=>({l:`${x[1]} + ${x[2]}`,r:x[0]}))}
+    else{const seen=new Set(),seenL=new Set();let guard=0;mkeys=[];
+      while(pairs.length<5&&guard++<4000){if(guard===2000)matchSeen.reset();const p=mathPair();const k=key(p.v);if(seen.has(k)||seenL.has(p.l)||matchSeen.has(p.l))continue;seen.add(k);seenL.add(p.l);mkeys.push(p.l);pairs.push({l:p.l,r:fmt(p.v)})}}
+    return{mode,left:pairs.map((p,i)=>({id:i,h:p.l})),right:shuffle(pairs.map((p,i)=>({id:i,h:p.r}))),sel:null,matched:{},mistakes:0,hinted:false,done:null,q:q||1,ids,mkeys};
   }
   const XTIP={idiom:'把成語和它的意思配成一對',char:'哪兩個部件可以拼成右邊的字？',math:'算一算，把算式和答案配成一對'};
   function renderMatch(){
+    if(G.game==='match')markShown('match');
     document.querySelectorAll('#g-match .modes button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.xmode===M.mode));
     $('x-tip').textContent=XTIP[M.mode];
     $('x-qno').textContent='第 '+M.q+' 組';

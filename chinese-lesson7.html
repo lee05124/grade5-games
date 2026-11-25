@@ -440,6 +440,50 @@ const store = {
   get(k,d){ try{ const v=localStorage.getItem(k); return v==null? d : JSON.parse(v); }catch(e){ return d; } },
   set(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
 };
+// 題庫輪替：同一台裝置上，題庫裡每一題都出過一次以後才會重複（記在瀏覽器）
+function Deck(key, ids){
+  const all = ids.map(String), valid = new Set(all);
+  const st = store.get(key, null) || {};
+  let seen = new Set((st.s || []).filter(x => valid.has(x))), next = new Set((st.n || []).filter(x => valid.has(x)));
+  if(seen.size >= all.length){ seen = next; next = new Set(); }
+  const save = () => store.set(key, {s:Array.from(seen), n:Array.from(next)});
+  return {
+    // 先從還沒出過的題目抽；不夠時才從已出過的補，並避開新一輪已出過的
+    draw(n, ok){
+      const out = [];
+      const take = list => { for(const x of shuffle(list)){ if(out.length >= n) return; if(out.includes(x) || (ok && !ok(x, out))) continue; out.push(x); } };
+      take(all.filter(x => !seen.has(x)));
+      if(out.length < n) take(all.filter(x => !next.has(x)));
+      if(out.length < n) take(all);
+      return out;
+    },
+    mark(id){
+      id = String(id); if(!valid.has(id)) return;
+      if(!seen.has(id)) seen.add(id); else next.add(id);
+      if(seen.size >= all.length){ seen = next; next = new Set(); }
+      save();
+    },
+    left(){ return all.filter(x => !seen.has(x)).length; }
+  };
+}
+// 沒有固定題庫、由程式產生的題目：記住出過的，不再出（記滿 cap 筆就丟掉最舊的）
+function SeenSet(key, cap){
+  let arr = store.get(key, []) || [], set = new Set(arr);
+  return {
+    has(k){ return set.has(k); },
+    add(k){ if(set.has(k)) return; arr.push(k); if(arr.length > cap) arr = arr.slice(-cap); set = new Set(arr); store.set(key, arr); },
+    reset(){ arr = []; set = new Set(); store.set(key, arr); }
+  };
+}
+const DECK = {
+  sound:Deck('l7r-d-sound', byLv.sound.map(q=>q.id)),
+  shape:Deck('l7r-d-shape', byLv.shape.map(q=>q.id)),
+  text:Deck('l7r-d-text', byLv.text.map(q=>q.id)),
+  vocabMix:Deck('l7r-d-vocab-mix', VOCAB.map(v=>v[0])),
+  vocabMatch:Deck('l7r-d-vocab-match', VOCAB.map(v=>v[0]))
+};
+const drawLv = (lv, n) => DECK[lv].draw(n).map(id => BANK[id]);
+const drawVocab = (deck, n) => deck.draw(n).map(w => VOCAB.find(v => v[0] === w));
 const K = {wrong:'l7r-wrong', best:'l7r-best', sound:'l7r-sound'};
 let wrong = new Set(store.get(K.wrong, []).filter(id=>getQ(id)));
 let best = store.get(K.best, {}) || {};
@@ -490,12 +534,12 @@ let G = null;
 function startQuiz(mode){
   let qs;
   if(mode==='mix'){
-    qs = shuffle([].concat(pick(byLv.sound,5), pick(byLv.shape,5), pick(VOCAB,5).map(vocabQ), pick(byLv.text,5)));
+    qs = shuffle([].concat(drawLv('sound',5), drawLv('shape',5), drawVocab(DECK.vocabMix,5).map(vocabQ), drawLv('text',5)));
   }else if(mode==='wrong'){
     qs = shuffle(Array.from(wrong).map(getQ).filter(Boolean)).slice(0,20);
     if(!qs.length){ renderBook(); return; }
   }else{
-    qs = pick(byLv[mode], LV[mode].n);
+    qs = drawLv(mode, LV[mode].n);
   }
   G = {mode:mode, qs:qs, i:0, score:0, streak:0, right:0, misses:[], cleared:0, answered:false};
   show('quiz'); renderQ();
@@ -503,6 +547,8 @@ function startQuiz(mode){
 function setStreak(el, n){ el.textContent = n>=3 ? '連對 '+n+' 題・每題加 5 分' : n>=2 ? '連對 '+n+' 題' : ''; }
 function renderQ(){
   const q = G.qs[G.i]; G.answered = false;
+  // 錯題重練是刻意重複，不算進題庫輪替
+  if(G.mode !== 'wrong'){ if(q.lv === 'vocab') DECK.vocabMix.mark(q.id.slice(2)); else DECK[q.lv].mark(q.id); }
   $('#qTitle').textContent = modeTitle(G.mode);
   $('#qCount').textContent = '第 '+(G.i+1)+' / '+G.qs.length+' 題';
   $('#qBar').style.width = (G.i/G.qs.length*100)+'%';
@@ -558,12 +604,13 @@ document.addEventListener('keydown', e=>{
 
 /* ===== 連連看 ===== */
 function startMatch(){
-  const w = pick(VOCAB, 15);
+  const w = drawVocab(DECK.vocabMatch, 15);
   G = {mode:'match', rounds:[w.slice(0,5), w.slice(5,10), w.slice(10,15)], r:0, score:0, streak:0, right:0, misses:[], missed:new Set(), sel:null, left:0};
   show('match'); renderRound();
 }
 function renderRound(){
   const set = G.rounds[G.r]; G.left = set.length; G.sel = null;
+  set.forEach(v => DECK.vocabMatch.mark(v[0]));
   $('#mCount').textContent = '第 '+(G.r+1)+' / '+G.rounds.length+' 組';
   $('#mBar').style.width = (G.r/G.rounds.length*100)+'%';
   $('#mScore').textContent = G.score;

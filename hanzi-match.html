@@ -341,10 +341,10 @@ function parseSound(s){ return s[1].split(' ').map(x => ({t:x[0], w:x.slice(1), 
 function makeState(mode, pick){
   const S = {mode, types:[], g:null, uid:0, words:[], theme:'', set:null};
   if(mode === 'radical'){
-    const src = pick != null ? [RADICALS[pick]] : shuffle(RADICALS).slice(0, NTYPES);
+    const src = Array.isArray(pick) ? pick.map(i => RADICALS[i]) : pick != null ? [RADICALS[pick]] : shuffle(RADICALS).slice(0, NTYPES);
     S.types = src.map(r => ({k:r[1], glyph:r[0], name:r[1], items:Array.from(r[2]).map(t => ({t}))}));
   }else if(mode === 'sound'){
-    S.types = shuffle(SOUNDS).slice(0, NTYPES).map(s => ({k:s[0], z:s[0], items:parseSound(s)}));
+    S.types = (Array.isArray(pick) ? pick.map(i => SOUNDS[i]) : shuffle(SOUNDS).slice(0, NTYPES)).map(s => ({k:s[0], z:s[0], items:parseSound(s)}));
   }else if(mode === 'same'){
     const set = parseSimilar(SIMILAR[pick != null ? pick : rint(SIMILAR.length)]);
     S.set = set;
@@ -502,6 +502,60 @@ const store = {
   set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
 };
 let best = store.get('hzm-best', {}) || {};
+// 題庫輪替：同一台裝置上，題庫裡每一題都出過一次以後才會重複（記在瀏覽器）
+function Deck(key, ids){
+  const all = ids.map(String), valid = new Set(all);
+  const st = store.get(key, null) || {};
+  let seen = new Set((st.s || []).filter(x => valid.has(x))), next = new Set((st.n || []).filter(x => valid.has(x)));
+  if(seen.size >= all.length){ seen = next; next = new Set(); }
+  const save = () => store.set(key, {s:Array.from(seen), n:Array.from(next)});
+  return {
+    // 先從還沒出過的題目抽；不夠時才從已出過的補，並避開新一輪已出過的
+    draw(n, ok){
+      const out = [];
+      const take = list => { for(const x of shuffle(list)){ if(out.length >= n) return; if(out.includes(x) || (ok && !ok(x, out))) continue; out.push(x); } };
+      take(all.filter(x => !seen.has(x)));
+      if(out.length < n) take(all.filter(x => !next.has(x)));
+      if(out.length < n) take(all);
+      return out;
+    },
+    mark(id){
+      id = String(id); if(!valid.has(id)) return;
+      if(!seen.has(id)) seen.add(id); else next.add(id);
+      if(seen.size >= all.length){ seen = next; next = new Set(); }
+      save();
+    },
+    left(){ return all.filter(x => !seen.has(x)).length; }
+  };
+}
+// 沒有固定題庫、由程式產生的題目：記住出過的，不再出（記滿 cap 筆就丟掉最舊的）
+function SeenSet(key, cap){
+  let arr = store.get(key, []) || [], set = new Set(arr);
+  return {
+    has(k){ return set.has(k); },
+    add(k){ if(set.has(k)) return; arr.push(k); if(arr.length > cap) arr = arr.slice(-cap); set = new Set(arr); store.set(key, arr); },
+    reset(){ arr = []; set = new Set(); store.set(key, arr); }
+  };
+}
+// 每局抽到的字組輪流換：偏旁 18 種、讀音 12 組、形近字 11 組、組詞 5 個主題，全部輪過才重複
+const GROUPS = {radical:Deck('hzm-d-radical', RADICALS.map((_, i) => i)), sound:Deck('hzm-d-sound', SOUNDS.map((_, i) => i)),
+  same:Deck('hzm-d-same', SIMILAR.map((_, i) => i)), word:Deck('hzm-d-word', WORD_SETS.map((_, i) => i))};
+const QKEY = 'hzm-q', QMODES = ['radical','sound'], ITEM_ID = it => it.t;
+// 盤面補進來的字接續上一局的順序：同一組的字全部輪過才會從頭出現
+function loadQueues(){
+  if(!QMODES.includes(S.mode)) return;
+  const all = store.get(QKEY, {}) || {};
+  S.types.forEach(t => {
+    const saved = all[S.mode + ':' + t.k];
+    if(Array.isArray(saved) && saved.length){ const q = saved.map(x => t.items.find(it => ITEM_ID(it) === x)).filter(Boolean); if(q.length) t.q = q; }
+  });
+}
+function saveQueues(){
+  if(!S || !QMODES.includes(S.mode)) return;
+  const all = store.get(QKEY, {}) || {};
+  S.types.forEach(t => { all[S.mode + ':' + t.k] = (t.q || []).map(ITEM_ID); });
+  store.set(QKEY, all);
+}
 let soundOn = store.get('hzm-sound', true) !== false;
 let zyOn = store.get('hzm-zy', false) === true;
 function starHTML(n){ let h = ''; for(let i = 0; i < 3; i++) h += '<i class="' + (i < n ? 'on' : '') + '">★</i>'; return h; }
@@ -563,7 +617,9 @@ const EL = new Map();
 
 function startGame(mode){
   gen++;
-  S = makeState(mode); fillBoard(S);
+  const multi = mode === 'radical' || mode === 'sound', ids = GROUPS[mode].draw(multi ? NTYPES : 1).map(Number);
+  ids.forEach(i => GROUPS[mode].mark(i));
+  S = makeState(mode, multi ? ids : ids[0]); loadQueues(); fillBoard(S); saveQueues();
   score = 0; moves = MOVES; learned = new Map(); found = []; sel = null; drag = null; busy = false;
   boardEl.querySelectorAll('.tile,.pop').forEach(x => x.remove()); EL.clear();
   $('#pTitle').textContent = MODE[mode].name;
@@ -692,7 +748,7 @@ async function trySwap(a, b){
   }
   if(moves <= 0){ busy = false; setTimeout(() => { if(g0 === gen) finish(); }, 500); return; }
   if(!findMoves(S, 1).length){ setMsg('沒有可以消的組合了，重新洗牌', 'warn'); await reshuffle(g0); if(g0 !== gen) return; }
-  busy = false; poke();
+  saveQueues(); busy = false; poke();
 }
 async function resolve(m, combo){
   const pts = scoreOf(S, m, combo);
@@ -816,7 +872,7 @@ function poke(){
 
 /* ===== 成績 ===== */
 function finish(){
-  clearTimeout(idleT); clearHint();
+  clearTimeout(idleT); clearHint(); saveQueues();
   const th = STARS[S.mode], st = score >= th[2] ? 3 : score >= th[1] ? 2 : score >= th[0] ? 1 : 0;
   if(st > (best[S.mode] || 0)){ best[S.mode] = st; store.set('hzm-best', best); }
   $('#rTitle').textContent = MODE[S.mode].name + '・本局結束';

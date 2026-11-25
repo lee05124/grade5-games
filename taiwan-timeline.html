@@ -152,7 +152,7 @@ details.panel summary{cursor:pointer;color:var(--muted);letter-spacing:.04em}
     <section class="panel">
       <div class="field"><span class="fl">範圍</span><div class="pills" id="pRange"></div></div>
       <div class="modes">
-        <button class="mode" type="button" id="goSort"><b>排排看</b><small>4 件事情依發生先後排好，每次 5 回合。</small><span class="best" id="bestSort"></span></button>
+        <button class="mode" type="button" id="goSort"><b>排排看</b><small>4 件事情依發生先後排好，一局最多 5 回合。</small><span class="best" id="bestSort"></span></button>
         <button class="mode" type="button" id="goPeriod"><b>哪個時期？</b><small>看事件，選出它發生在哪個時期，每次 10 題。</small><span class="best" id="bestPeriod"></span></button>
       </div>
     </section>
@@ -180,7 +180,7 @@ details.panel summary{cursor:pointer;color:var(--muted);letter-spacing:.04em}
     <div class="hud">
       <button class="back" type="button" data-home>← 回首頁</button>
       <span class="ttl">排排看</span>
-      <span class="stat">第 <b id="sNo">1</b> / 5 回</span>
+      <span class="stat">第 <b id="sNo">1</b> / <span id="sTot">5</span> 回</span>
       <span class="stat">得分 <b id="sScore">0</b></span>
     </div>
     <div class="progress"><i id="sBar"></i></div>
@@ -284,6 +284,45 @@ function beep(ok){
       o.connect(g); g.connect(AC.destination); o.start(st); o.stop(st + 0.15); }); }catch(e){}
 }
 const isTxt = y => !/^\d+$/.test(y);
+// 題庫輪替：同一台裝置上，題庫裡每一題都出過一次以後才會重複（記在瀏覽器）
+function Deck(key, ids){
+  const all = ids.map(String), valid = new Set(all);
+  const st = store.get(key, null) || {};
+  let seen = new Set((st.s || []).filter(x => valid.has(x))), next = new Set((st.n || []).filter(x => valid.has(x)));
+  if(seen.size >= all.length){ seen = next; next = new Set(); }
+  const save = () => store.set(key, {s:Array.from(seen), n:Array.from(next)});
+  return {
+    // 先從還沒出過的題目抽；不夠時才從已出過的補，並避開新一輪已出過的
+    draw(n, ok){
+      const out = [];
+      const take = list => { for(const x of shuffle(list)){ if(out.length >= n) return; if(out.includes(x) || (ok && !ok(x, out))) continue; out.push(x); } };
+      take(all.filter(x => !seen.has(x)));
+      if(out.length < n) take(all.filter(x => !next.has(x)));
+      if(out.length < n) take(all);
+      return out;
+    },
+    mark(id){
+      id = String(id); if(!valid.has(id)) return;
+      if(!seen.has(id)) seen.add(id); else next.add(id);
+      if(seen.size >= all.length){ seen = next; next = new Set(); }
+      save();
+    },
+    left(){ return all.filter(x => !seen.has(x)).length; }
+  };
+}
+// 沒有固定題庫、由程式產生的題目：記住出過的，不再出（記滿 cap 筆就丟掉最舊的）
+function SeenSet(key, cap){
+  let arr = store.get(key, []) || [], set = new Set(arr);
+  return {
+    has(k){ return set.has(k); },
+    add(k){ if(set.has(k)) return; arr.push(k); if(arr.length > cap) arr = arr.slice(-cap); set = new Set(arr); store.set(key, arr); },
+    reset(){ arr = []; set = new Set(); store.set(key, arr); }
+  };
+}
+const decks = {};
+const deckOf = (k, list) => decks[k] || (decks[k] = Deck('tw-d-' + k, list.map(e => e.id)));
+// 每局回合數：事件不夠 20 個的範圍（五上 11 個）就少幾回合，同一局不重複
+const roundsFor = range => Math.min(5, Math.floor(EV.filter(e => RANGES[range].includes(e.p)).length / 4));
 const cfg = Object.assign({range:'all'}, store.get('tw-cfg', {}) || {});
 const best = store.get('tw-best', {}) || {};
 function show(id){ ['home','sort','period','res'].forEach(s => { $('#' + s).hidden = s !== id; }); window.scrollTo(0, 0); }
@@ -299,7 +338,7 @@ function renderRange(){
 }
 function renderBest(){
   const s = best['sort-' + cfg.range], p = best['period-' + cfg.range];
-  $('#bestSort').textContent = s != null ? '這個範圍最佳：' + s + ' / 20 分' : '';
+  $('#bestSort').textContent = s != null ? '這個範圍最佳：' + s + ' / ' + roundsFor(cfg.range) * 4 + ' 分' : '';
   $('#bestPeriod').textContent = p != null ? '這個範圍最佳：' + p + ' / 10 題' : '';
 }
 function renderTimeline(){
@@ -316,24 +355,19 @@ $('#soundBtn').addEventListener('click', () => { soundOn = !soundOn; store.set('
 
 /* ===== 排排看 ===== */
 let G = null;
-function pickFour(pool){
-  // 4 件年份不同的事件；同一年的事件不會一起出
-  for(let t = 0; t < 200; t++){
-    const pick = [], years = new Set();
-    for(const e of shuffle(pool)){ if(!years.has(e.yi)){ pick.push(e); years.add(e.yi); } if(pick.length === 4) break; }
-    if(pick.length === 4) return pick;
-  }
-  return shuffle(pool).slice(0, 4);
-}
 function startSort(){
   const pool = EV.filter(e => RANGES[cfg.range].includes(e.p));
-  G = {kind:'sort', pool, round:0, score:0};
+  G = {kind:'sort', pool, round:0, score:0, rounds:roundsFor(cfg.range), used:new Set(), deck:deckOf('sort-' + cfg.range, pool)};
+  $('#sTot').textContent = G.rounds;
   show('sort'); newRound();
 }
 function newRound(){
-  G.cards = pickFour(G.pool); G.order = []; G.checked = false;
+  // 4 件年份不同、這局還沒出過的事件；整個範圍的事件都出過才會重複
+  const ids = G.deck.draw(4, (x, out) => !G.used.has(x) && !out.some(y => EV[+y].yi === EV[+x].yi));
+  ids.forEach(x => { G.used.add(x); G.deck.mark(x); });
+  G.cards = ids.map(x => EV[+x]); G.order = []; G.checked = false;
   $('#sNo').textContent = G.round + 1; $('#sScore').textContent = G.score;
-  $('#sBar').style.width = (G.round / 5 * 100) + '%';
+  $('#sBar').style.width = (G.round / G.rounds * 100) + '%';
   $('#sFb').hidden = true; $('#sNext').hidden = true; $('#sCheck').hidden = false;
   $('#poolTitle').hidden = false;
   drawSort();
@@ -381,16 +415,16 @@ $('#sCheck').addEventListener('click', () => {
   $('#sVerdict').textContent = n === 4 ? '全部排對了！' : '排對 ' + n + ' 個。正確順序是：';
   $('#sTl').innerHTML = correct.map(id => { const e = EV[id]; return '<li><span class="y' + (isTxt(e.y) ? ' txt' : '') + '">' + e.y + '</span><span>' + e.x + '</span></li>'; }).join('');
   $('#sFb').hidden = false; $('#sCheck').hidden = true; $('#sNext').hidden = false;
-  $('#sNext').textContent = G.round === 4 ? '看成績' : '下一回';
-  $('#sBar').style.width = ((G.round + 1) / 5 * 100) + '%';
+  $('#sNext').textContent = G.round === G.rounds - 1 ? '看成績' : '下一回';
+  $('#sBar').style.width = ((G.round + 1) / G.rounds * 100) + '%';
   $('#sFb').scrollIntoView({block:'nearest', behavior:'smooth'});
 });
 $('#sNext').addEventListener('click', () => {
-  if(G.round < 4){ G.round++; newRound(); window.scrollTo(0, 0); }
+  if(G.round < G.rounds - 1){ G.round++; newRound(); window.scrollTo(0, 0); }
   else{
     const key = 'sort-' + cfg.range; if(best[key] == null || G.score > best[key]){ best[key] = G.score; store.set('tw-best', best); }
-    $('#rTitle').textContent = '排排看・成績'; $('#rBig').innerHTML = G.score + '<small>/ 20 分</small>';
-    $('#rLine').textContent = G.score === 20 ? '每一回都排對了。' : '每排對一張卡片得 1 分。打開首頁的「時間軸一覽」再讀一遍。';
+    $('#rTitle').textContent = '排排看・成績'; $('#rBig').innerHTML = G.score + '<small>/ ' + G.rounds * 4 + ' 分</small>';
+    $('#rLine').textContent = G.score === G.rounds * 4 ? '每一回都排對了。' : '每排對一張卡片得 1 分。打開首頁的「時間軸一覽」再讀一遍。';
     show('res');
   }
 });
@@ -399,12 +433,13 @@ $('#goSort').addEventListener('click', startSort);
 /* ===== 哪個時期 ===== */
 function startPeriod(){
   const pool = EV.filter(e => RANGES[cfg.range].includes(e.p) && !e.b);
-  const qs = shuffle(pool).slice(0, Math.min(10, pool.length));
-  G = {kind:'period', qs, i:0, right:0};
+  const deck = deckOf('period-' + cfg.range, pool);
+  const qs = deck.draw(Math.min(10, pool.length)).map(x => EV[+x]);
+  G = {kind:'period', qs, i:0, right:0, deck};
   show('period'); newPQ();
 }
 function newPQ(){
-  const e = G.qs[G.i]; G.answered = false;
+  const e = G.qs[G.i]; G.answered = false; G.deck.mark(e.id);
   $('#pNo').textContent = G.i + 1; $('#pRight').textContent = G.right;
   $('#pBar').style.width = (G.i / G.qs.length * 100) + '%';
   $('#pEv').textContent = e.t;
